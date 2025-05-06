@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}
+ClassFit | {{ request.user.username }}
+{% endblock title %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <h1>Welcome to ClassFit</h1>
+        <p>This is the homepage.</p>
+    </div>
+    <div class="row">
+        <div class="col-12 col-md-6">
+            <h4>Your Upcoming Bookings</h4>
+            <ul class="list-unstyled" aria-label="Upcoming Bookings">
+                {% for booking in bookings %}
+                {% if forloop.counter <= 3 %}
+                <li class="d-flex justify-content-center mb-3">
+                    <div class="card text-bg-success flex-grow-1 mx-2">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ booking.event.event_name }}</h5>
+                            <p class="card-text">@ {{booking.event.start_time}} - {{booking.event.end_time}}</p>
+                            <p>{{booking.event.date_of_event}}</p>
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+                {% empty %}
+                <li class="d-flex justify-content-center mb-3">
+                    <div class="card text-bg-warning flex-grow-1 mx-2">
+                        <div class="card-body">
+                            <h5 class="card-title">No Upcoming Bookings</h5>
+                            <p class="card-text">You have no upcoming bookings at the moment.</p>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="col-12 col-md-6">
+            <h4>Your Recent Scores</h4>
+            <ul class="list-unstyled" aria-label="Recent Scores">
+                {% for score in scores %}
+                {% if forloop.counter <= 3 %}
+                <li class="d-flex justify-content-center mb-3">
+                    <div class="card text-bg-secondary flex-grow-1 mx-2">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ score.exercise }}</h5>
+                            <p class="card-text">{{ score.reps }} reps @ {{ score.weight }}kg</p>
+                            <p>{{score.created_on}}</p>
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+                {% empty %}
+                <li class="d-flex justify-content-center mb-3">
+                    <div class="card text-bg-warning flex-grow-1 mx-2">
+                        <div class="card-body">
+                            <h5 class="card-title">No Recent Scores</h5>
+                            <p class="card-text">You have no recent scores at the moment.</p>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-12">
+        <h2>Our Leaderboard</h2>
+        <form method="get" action="{% url 'home' %}" aria-label="Leaderboard Filter">
+            {{ filter.as_p }}
+            <button type="submit" class="btn btn-primary" aria-label="Filter Leaderboard">Filter</button>
+        </form>
+        <table id="leaderboard" class="table text-center" style='background-color: white;' aria-label="Leaderboard">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>User</th>
+                    <th>Exercise</th>
+                    <th>Weight</th>
+                    <th>Reps</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in leaderboard %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ entry.user }}</td>
+                    <td>{{ entry.exercise }}</td>
+                    <td>{{ entry.weight }}</td>
+                    <td>{{ entry.reps }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block unauthorised_content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1>Welcome to ClassFit</h1>
+            <p>The ClassFit booking system allows you to book classes and track your progress</p>
+            <p>Sign up or log in to get started.</p>
+            <a href="{% url 'account_signup' %}" class="btn btn-primary" aria-label="Sign Up">Sign Up</a>
+            <a href="{% url 'account_login' %}" class="btn btn-secondary" aria-label="Log In">Log In</a>
+        </div>
+    </div>
+</div>
+{% endblock unauthorised_content %}

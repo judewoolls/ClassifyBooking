@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Add Class</h1>
+<div class="container">
+    <div class="row">
+        <form action="{% url 'create_event' %}" method="post" aria-label="Create Event Form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-success" aria-label="Button to submit a new class event">Create</button>
+        </form>
+    </div>
+</div>
+
+
+{% endblock content%}

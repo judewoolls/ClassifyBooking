@@ -1,0 +1,89 @@
+/* style.css */
+
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background-color: rgb(237, 229, 229);
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    margin-top: 40px;
+}
+
+#main-content > *{
+    text-align: center;
+    align-items: center;
+}
+
+.card {
+    margin-bottom: 5px;
+}
+
+#date-heading {
+    margin-top: 10px;
+}
+
+#add-event-button {
+    margin-top: 16px;
+}
+
+#edit-score-button {
+    display: inline-block;
+}
+
+#delete-scores-form {
+    display: inline;
+}
+
+#edit-event-button {
+    display: inline-block;
+}
+
+.event-timings, .event-title {
+    color: white;
+}
+
+.event-title:hover {
+    cursor: pointer;
+}
+
+.nav-link:hover {
+    cursor: pointer;
+}
+
+li {
+    list-style: none;
+}
+
+#leaderboard {
+    margin-bottom: 40px;
+    margin-top: 60px;
+    min-width: 100%;
+}
+
+#edit-event-form {
+    margin-bottom: 40px;
+}
+
+@media screen and (max-width: 600px) {
+    #leaderboard {
+        max-width: 75%;
+    }
+    footer, nav {
+        min-width: 100%;
+    }
+    
+}
+
+
+
+
