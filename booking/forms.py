@@ -22,8 +22,17 @@ class EventForm(forms.ModelForm):
 
 # the multievent form is used to create multiple events at once
 # and is used by the coach to create events
-
 class MultiEventForm(forms.ModelForm):
+    start_time = forms.TimeField(
+        label='Start Time',
+        widget=forms.TimeInput(attrs={'class': 'form-control'}),
+        required=True
+    )
+    end_time = forms.TimeField(
+        label='End Time',
+        widget=forms.TimeInput(attrs={'class': 'form-control'}),
+        required=True
+    )
     frequency = forms.IntegerField(
         min_value=1,
         label='Number of repetitions',
@@ -37,20 +46,11 @@ class MultiEventForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         required=True
     )
-    event_details = forms.CharField(
-        widget=forms.Textarea(
-            attrs={'rows': 3, 'placeholder': 'Enter start-end times, one per line (e.g., 07:45-08:30)',
-                   'class': 'form-control'}),
-        label='Event Times',
-        help_text='Format: HH:MM-HH:MM per line',
-        required=True
-    )
 
     class Meta:
         model = Event
         fields = ['coach', 'event_name', 'description', 'date_of_event',
-                  'capacity', 'status', 'frequency', 'gap',
-                  'event_details']  # Define the order here.
+                  'capacity', 'status', 'start_time', 'end_time', 'frequency', 'gap']
         widgets = {
             'coach': forms.Select(attrs={'class': 'form-control'}),
             'event_name': forms.TextInput(attrs={'class': 'form-control'}),

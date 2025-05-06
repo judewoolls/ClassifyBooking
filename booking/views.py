@@ -7,6 +7,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import EventForm, MultiEventForm
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def check_for_coach(request):
     coaches = Coach.objects.all()
@@ -127,16 +131,71 @@ def create_event(request):
          'form': form}
     )
 
+
 @login_required
 def create_multi_event(request):
     if request.method == 'POST':
         form = MultiEventForm(request.POST)
         if form.is_valid():
-            # Handle form submission logic here
+            date_input = form.cleaned_data['date_of_event']
+            coach_input = Coach.objects.get(coach=request.user)
+            start_time = form.cleaned_data['start_time']
+            end_time = form.cleaned_data['end_time']
+            frequency_input = form.cleaned_data['frequency']
+            gap_input = form.cleaned_data['gap']
+            event_name = form.cleaned_data['event_name']
+            description = form.cleaned_data['description']
+            capacity = form.cleaned_data['capacity']
+            status = form.cleaned_data['status']
+
+            events_to_create = []
+
+            # Create the first event
+            first_event = Event(
+                coach=coach_input,
+                event_name=event_name,
+                description=description,
+                date_of_event=date_input,
+                capacity=capacity,
+                start_time=start_time,
+                end_time=end_time,
+                status=status,
+            )
+            events_to_create.append(first_event)
+
+            # Handle repetition logic
+            if frequency_input > 1:  # Changed to > 1
+                current_start_datetime = datetime.combine(date_input, end_time)
+                duration_timedelta = datetime.combine(date_input, end_time) - datetime.combine(date_input, start_time)
+
+                for _ in range(frequency_input - 1): # Changed to frequency_input -1
+                    current_start_datetime += timedelta(minutes=gap_input)
+                    next_end_datetime = current_start_datetime + duration_timedelta
+
+                    # Check if the next event's start time is still on the same day
+                    if current_start_datetime.date() == date_input:
+                        repeated_event = Event(
+                            coach=coach_input,
+                            event_name=event_name,
+                            description=description,
+                            date_of_event=date_input,
+                            capacity=capacity,
+                            start_time=current_start_datetime.time(),
+                            end_time=next_end_datetime.time(),
+                            status=status,
+                        )
+                        events_to_create.append(repeated_event)
+                    else:
+                        break  # Stop adding events
+
+            # Bulk create all events
+            Event.objects.bulk_create(events_to_create)
             messages.success(request, "Events created successfully")
-            return redirect('event_search', date=form.cleaned_data['date_of_event'])
+            return redirect('event_search', date=date_input)
         else:
-            print(form.errors)  # Debugging information
+            logger.warning(f"Form is invalid. Errors: {form.errors}")
+            print(form.errors)
+            return render(request, 'booking/multi_event.html', {'form': form})
     else:
         form = MultiEventForm()
     return render(
@@ -144,6 +203,7 @@ def create_multi_event(request):
         "booking/multi_event.html",
         {"form": form}
     )
+
 
 
 @login_required
