@@ -1,1 +1,1 @@
-web: gunicorn classfit.wsgi
+web: gunicorn classifyBooking.wsgi
