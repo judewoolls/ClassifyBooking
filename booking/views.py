@@ -5,7 +5,7 @@ from django.views import generic
 from datetime import timedelta, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .forms import EventForm
+from .forms import EventForm, MultiEventForm
 
 
 def check_for_coach(request):
@@ -125,6 +125,24 @@ def create_event(request):
         "booking/create_event.html",
         {"coaches": Coach.objects.filter(coach=request.user),
          'form': form}
+    )
+
+@login_required
+def create_multi_event(request):
+    if request.method == 'POST':
+        form = MultiEventForm(request.POST)
+        if form.is_valid():
+            # Handle form submission logic here
+            messages.success(request, "Events created successfully")
+            return redirect('event_search', date=form.cleaned_data['date_of_event'])
+        else:
+            print(form.errors)  # Debugging information
+    else:
+        form = MultiEventForm()
+    return render(
+        request,
+        "booking/multi_event.html",
+        {"form": form}
     )
 
 

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Create Multiple Events</h1>
+<div class="container">
+    <div class="row">
+        <form action="{% url 'create_multi_event' %}" method="post" aria-label="Create Multi Event Form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-success" aria-label="Submit Multi Event Form">Create</button>
+        </form>
+    </div>
+</div>
+{% endblock content %}
