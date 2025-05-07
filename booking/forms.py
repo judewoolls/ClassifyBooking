@@ -12,7 +12,7 @@ class EventForm(forms.ModelForm):
             'coach': forms.Select(attrs={'class': 'form-control'}),
             'event_name': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control'}),
-            'date_of_event': forms.DateInput(attrs={'class': 'form-control'}),
+            'date_of_event': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'capacity': forms.NumberInput(attrs={'class': 'form-control',
                                                  'min': 1}),
             'start_time': forms.TimeInput(attrs={'class': 'form-control'}),
