@@ -188,7 +188,15 @@ def create_multi_event(request):
                     else:
                         break  # Stop adding events
 
+                    current_start_datetime = next_end_datetime
+
             # Bulk create all events
+            start_time_test = None
+            for i in range (0, len(events_to_create) - 1):
+                if start_time_test == events_to_create[i].start_time:
+                    events_to_create = events_to_create[:i]
+                    break
+                start_time_test = events_to_create[i].start_time
             Event.objects.bulk_create(events_to_create)
             messages.success(request, "Events created successfully")
             return redirect('event_search', date=date_input)
