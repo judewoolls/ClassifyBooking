@@ -6,6 +6,8 @@ from datetime import timedelta, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import EventForm, MultiEventForm
+from datetime import date, timedelta
+from django.shortcuts import render, redirect
 
 import logging
 
@@ -213,6 +215,51 @@ def create_multi_event(request):
     )
 
 
+@login_required
+def duplicate_event(request, date_str):
+    # Parse the date string into a `date` object
+    try:
+        selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return HttpResponse("Invalid date format", status=400)
+
+    if request.method == 'POST':
+        # Get the events for the selected date
+        events = Event.objects.filter(date_of_event=selected_date)
+
+        # Create a list to hold the new events
+        new_events = []
+
+        date_input = request.POST.get('dates-sent')
+        # Check if the date input is valid
+        if date_input:
+            date_array = [date.strip() for date in date_input.split(',')]
+        else:
+            messages.error(request, "Invalid date input")
+            return redirect('event_search', date=selected_date)
+
+        # Loop through each event and create a new one
+        for event in events:
+            for day in date_array:
+                new_event = Event(
+                    coach=event.coach,
+                    event_name=event.event_name,
+                    description=event.description,
+                    date_of_event= day,
+                    capacity=event.capacity,
+                    start_time=event.start_time,
+                    end_time=event.end_time,
+                    status=event.status,
+                )
+                new_events.append(new_event)
+
+        # Bulk create the new events
+        Event.objects.bulk_create(new_events)
+        messages.success(request, "Events duplicated successfully")
+        return redirect('event_search', date=selected_date)
+    else:
+        return render(request, 'booking/duplicate_events.html', {'selected_date': selected_date})
+
 
 @login_required
 def edit_event(request, event_id):
@@ -233,3 +280,5 @@ def edit_event(request, event_id):
         {"event": event,
          'form': form}
     )
+
+

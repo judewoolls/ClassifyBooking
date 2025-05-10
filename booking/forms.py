@@ -1,6 +1,8 @@
 from django import forms
 from .models import Coach, Event, Booking
-
+from django.forms import DateField
+from django.forms.widgets import DateInput, CheckboxSelectMultiple
+from datetime import date, timedelta
 
 # This form is used for the coach to create or edit an event
 class EventForm(forms.ModelForm):

@@ -29,6 +29,12 @@ ClassFit | Classes | {{ current_date }}
                 <button type="submit" class="btn btn-secondary" aria-label="Add Multi Event">Add Multi Event</button>
             </form>
         </div>
+        <div id="copy-day-button" class="mt-2">
+            <form action="{% url 'duplicate_day_events' current_date %}" method="get">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" aria-label="Add Multi Event">Duplicate Schedule</button>
+            </form>
+        </div>
         {% endif %}
         <!-- Event Entries Column -->
         <div class="col-12 mt-3 left">

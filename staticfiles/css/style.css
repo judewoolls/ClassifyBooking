@@ -74,6 +74,10 @@ li {
     margin-bottom: 40px;
 }
 
+.hidden {
+    display: none;
+}
+
 @media screen and (max-width: 600px) {
     #leaderboard {
         max-width: 75%;

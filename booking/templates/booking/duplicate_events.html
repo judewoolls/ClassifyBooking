@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block content %}
+<h1>Duplicate Events</h1>
+<div class="container">
+    <div class="row">
+
+        <input type="date" name="date" id="date-input">
+        <button id="add">Add</button>
+        <h3>List of dates added</h3>
+        <ul id="date-list">
+        </ul>
+        <form action="{% url 'duplicate_day_events' selected_date %}" method="post" id="date-form">
+            {% csrf_token %}
+            <label for="dates-sent">These are the dates you want to add</label>
+            <p id="dates-sent-output"></p>
+            <input class="hidden" type="text" name="dates-sent" id="dates-sent-input">
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'scripts/formScript.js' %}"></script>
+
+{% endblock content %}
