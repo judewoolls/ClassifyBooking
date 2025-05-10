@@ -7,17 +7,17 @@
 <div class="container">
     <div class="row">
 
-        <input type="date" name="date" id="date-input">
-        <button id="add">Add</button>
+        <input class="col-9 col-md-11" type="date" name="date" id="date-input">
+        <button class="btn btn-success col-3 col-md-1" id="add">Add</button>
         <h3>List of dates added</h3>
-        <ul id="date-list">
+        <ul id="date-list" class="d-flex flex-row flex-wrap"></ul>
         </ul>
         <form action="{% url 'duplicate_day_events' selected_date %}" method="post" id="date-form">
             {% csrf_token %}
             <label for="dates-sent">These are the dates you want to add</label>
             <p id="dates-sent-output"></p>
-            <input class="hidden" type="text" name="dates-sent" id="dates-sent-input">
-            <button type="submit">Submit</button>
+            <input style="display: none;" type="text" name="dates-sent" id="dates-sent-input">
+            <button class="btn btn-primary" type="submit">Submit</button>
         </form>
     </div>
 </div>
