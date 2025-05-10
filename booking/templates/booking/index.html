@@ -54,6 +54,7 @@ ClassFit | Classes | {{ current_date }}
                             </a>
 
                             <hr>
+                            <p class="card-text h6 event-location">{{ event.venue.name }}</p>
                             <p class="card-text h6 event-timings">{{ event.start_time }} - {{ event.end_time }}</p>
                             <p>{{event.number_of_bookings}}/{{event.capacity}}</p>
                             {% if is_coach %}

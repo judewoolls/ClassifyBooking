@@ -28,6 +28,10 @@ class Event(models.Model):
     event_name = models.CharField(max_length=200)
     description = models.TextField()
     date_of_event = models.DateField()
+    from company.models import Venue
+    venue = models.ForeignKey(
+        Venue, on_delete=models.CASCADE, related_name="event_venue"
+    )
     capacity = models.IntegerField()
     start_time = models.TimeField()
     end_time = models.TimeField()
