@@ -13,6 +13,9 @@ EVENT_STATUS = ((0, 'Future'), (1, 'Past'))
 class Coach(models.Model):
     coach = models.ForeignKey(User, on_delete=models.CASCADE,
                               related_name="coach")
+    company = models.ForeignKey(
+        "company.Company", on_delete=models.CASCADE, related_name="company_coach"
+    )
     join_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

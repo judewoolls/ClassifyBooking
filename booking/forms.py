@@ -3,13 +3,21 @@ from .models import Coach, Event, Booking
 from django.forms import DateField
 from django.forms.widgets import DateInput, CheckboxSelectMultiple
 from datetime import date, timedelta
+from company.models import Venue
 
 # This form is used for the coach to create or edit an event
 class EventForm(forms.ModelForm):
+
+    venue = forms.ModelChoiceField(
+        queryset=Venue.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label="Venue",
+        required=True
+    )
     class Meta:
         model = Event
         fields = ['coach', 'event_name', 'description', 'date_of_event',
-                  'capacity', 'start_time', 'end_time', 'status']
+                  'venue','capacity', 'start_time', 'end_time', 'status']
         widgets = {
             'coach': forms.Select(attrs={'class': 'form-control'}),
             'event_name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -21,6 +29,17 @@ class EventForm(forms.ModelForm):
             'end_time': forms.TimeInput(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
         }
+        def __init__(self, *args, **kwargs):
+            user = kwargs.pop('user', None)  # Extract the user from kwargs
+            super().__init__(*args, **kwargs)
+            if user:
+                try:
+                    coach = Coach.objects.get(user=user)  # Get the coach associated with the user
+                    # Filter venues by the coach's company
+                    self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
+                except Coach.DoesNotExist:
+                    # Handle the case where the user is not a coach.
+                    self.fields['venue'].queryset = Venue.objects.none()
 
 # the multievent form is used to create multiple events at once
 # and is used by the coach to create events
@@ -48,10 +67,16 @@ class MultiEventForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         required=True
     )
+    venue = forms.ModelChoiceField(
+        queryset=Venue.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label="Venue",
+        required=True
+    )
 
     class Meta:
         model = Event
-        fields = ['coach', 'event_name', 'description', 'date_of_event',
+        fields = ['coach', 'event_name', 'description', 'date_of_event', 'venue',
                   'capacity', 'status', 'start_time', 'end_time', 'frequency', 'gap']
         widgets = {
             'coach': forms.Select(attrs={'class': 'form-control'}),
@@ -62,3 +87,14 @@ class MultiEventForm(forms.ModelForm):
                                                  'min': 1}),
             'status': forms.Select(attrs={'class': 'form-control'}),
         }
+        def __init__(self, *args, **kwargs):
+            user = kwargs.pop('user', None)  # Extract the user from kwargs
+            super().__init__(*args, **kwargs)
+            if user:
+                try:
+                    coach = Coach.objects.get(user=user)  # Get the coach associated with the user
+                    # Filter venues by the coach's company
+                    self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
+                except Coach.DoesNotExist:
+                    # Handle the case where the user is not a coach.
+                    self.fields['venue'].queryset = Venue.objects.none()

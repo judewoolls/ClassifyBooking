@@ -12,8 +12,6 @@ class Company(models.Model):
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     website = models.URLField()
-    from booking.models import Coach
-    coaches = models.ManyToManyField(Coach, related_name='companies') #  Forward reference requires string
 
     def __str__(self):
         return self.name
