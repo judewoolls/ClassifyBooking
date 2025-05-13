@@ -224,10 +224,12 @@ def duplicate_event(request, date_str):
         selected_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         return HttpResponse("Invalid date format", status=400)
+    
+    coach_input = get_object_or_404(Coach, coach=request.user)
 
     if request.method == 'POST':
         # Get the events for the selected date
-        events = Event.objects.filter(date_of_event=selected_date)
+        events = Event.objects.filter(date_of_event=selected_date, coach__company=coach_input.company)
 
         # Create a list to hold the new events
         new_events = []
@@ -243,17 +245,19 @@ def duplicate_event(request, date_str):
         # Loop through each event and create a new one
         for event in events:
             for day in date_array:
-                new_event = Event(
-                    coach=event.coach,
-                    event_name=event.event_name,
-                    description=event.description,
-                    date_of_event= day,
-                    capacity=event.capacity,
-                    start_time=event.start_time,
-                    end_time=event.end_time,
-                    status=event.status,
-                )
-                new_events.append(new_event)
+                if event.coach.company == coach_input.company:
+                    new_event = Event(
+                        coach=event.coach,
+                        event_name=event.event_name,
+                        description=event.description,
+                        venue = event.venue,
+                        date_of_event= day,
+                        capacity=event.capacity,
+                        start_time=event.start_time,
+                        end_time=event.end_time,
+                        status=event.status,
+                    )
+                    new_events.append(new_event)
 
         # Bulk create the new events
         Event.objects.bulk_create(new_events)
