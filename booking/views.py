@@ -114,24 +114,26 @@ def delete_event(request, event_id):
 
 @login_required
 def create_event(request):
+    # Check if the user is a coach
+    try:
+        coach = Coach.objects.get(coach=request.user)  # <-- FIXED HERE
+    except Coach.DoesNotExist:
+        messages.error(request, "You are not authorized to create events")
+        return redirect('event_search', date=date.today())
+
     if request.method == 'POST':
-        form = EventForm(request.POST)
+        form = EventForm(request.POST, user=request.user, request=request)
         if form.is_valid():
             event = form.save(commit=False)
-            event.coach = Coach.objects.get(coach=request.user)
+            event.coach = coach  # Reuse the coach object you already got
             event.save()
             messages.success(request, "Event created successfully")
             return redirect('event_search', date=event.date_of_event)
         else:
-            print(form.errors)  # Debugging information
+            print(form.errors)
     else:
-        form = EventForm()
-    return render(
-        request,
-        "booking/create_event.html",
-        {"coaches": Coach.objects.filter(coach=request.user),
-         'form': form}
-    )
+        form = EventForm(user=request.user, request=request)
+    return render(request, "booking/create_event.html", {'form': form})
 
 
 @login_required
