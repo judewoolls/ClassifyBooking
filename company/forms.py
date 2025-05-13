@@ -3,7 +3,7 @@ from django import forms
 from company.models import Company
 
 class CustomSignupForm(SignupForm):
-    company = forms.ModelChoiceField(queryset=Company.objects.all(), empty_label="Select your company")
+    company = forms.ModelChoiceField(queryset=Company.objects.all(), empty_label="Select your company", required=False)
 
     def save(self, request):
         user = super().save(request)
