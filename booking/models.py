@@ -1,25 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import User
+from company.models import Coach
 
 STATUS = ((0, 'Active'), (1, 'Expired'))
 EVENT_STATUS = ((0, 'Future'), (1, 'Past'))
 
 # Create your models here.
-
-# Event model ######
-
-
-# Coach model - to store which users are coaches
-class Coach(models.Model):
-    coach = models.ForeignKey(User, on_delete=models.CASCADE,
-                              related_name="coach")
-    company = models.ForeignKey(
-        "company.Company", on_delete=models.CASCADE, related_name="company_coach"
-    )
-    join_date = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.coach.username}"
 
 
 # Event model - to store the events created by the coaches

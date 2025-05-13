@@ -1,9 +1,9 @@
 from django import forms
-from .models import Coach, Event, Booking
+from .models import Event
 from django.forms import DateField
 from django.forms.widgets import DateInput, CheckboxSelectMultiple
 from datetime import date, timedelta
-from company.models import Venue
+from company.models import Venue, Coach
 
 # This form is used for the coach to create or edit an event
 class EventForm(forms.ModelForm):
@@ -37,9 +37,11 @@ class EventForm(forms.ModelForm):
                     coach = Coach.objects.get(user=user)  # Get the coach associated with the user
                     # Filter venues by the coach's company
                     self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
+                    self.fields['coach'].queryset = Coach.objects.filter(company=coach.company)
                 except Coach.DoesNotExist:
                     # Handle the case where the user is not a coach.
                     self.fields['venue'].queryset = Venue.objects.none()
+                    self.fields['coach'].queryset = Coach.objects.none()
 
 # the multievent form is used to create multiple events at once
 # and is used by the coach to create events
