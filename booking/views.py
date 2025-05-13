@@ -51,7 +51,8 @@ def event_search(request, date):
     previous_date = current_date - timedelta(days=1)
     next_date = current_date + timedelta(days=1)
 
-    events = Event.objects.filter(date_of_event=current_date, status=0)
+    user_company = request.user.profile.company
+    events = Event.objects.filter(coach__company=user_company, date_of_event=current_date, status=0)
     events = events.order_by('start_time')
     for event in events:
         event.is_user_booked = event.is_user_booked(request.user)
