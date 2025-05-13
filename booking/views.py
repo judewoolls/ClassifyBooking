@@ -245,7 +245,7 @@ def duplicate_event(request, date_str):
         # Loop through each event and create a new one
         for event in events:
             for day in date_array:
-                if event.coach.company == coach_input.company:
+                if event.coach.company == coach_input.company and event.coach == coach_input:
                     new_event = Event(
                         coach=event.coach,
                         event_name=event.event_name,
