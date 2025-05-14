@@ -48,4 +48,5 @@ class UserProfile(models.Model):
 
 
     def __str__(self):
-        return f"{self.user.username} - {self.company.name}"
+        company_name = self.company.name if self.company else "No Company"
+        return f"{self.user.username} - {company_name}"
