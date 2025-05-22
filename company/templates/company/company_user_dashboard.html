@@ -3,4 +3,11 @@
 
 {% block content %}
 <h2>User Dashboard</h2>
+<p>Company info</p>
+<ul>
+    <li>{{ company.name }}</li>
+    <li>{{ company.email}}</li>
+    <li>{{ company.phone_number }}</li>
+    <li><a href="{{ company.website}}">Visit company website</a></li>
+</ul>
 {% endblock content %}
