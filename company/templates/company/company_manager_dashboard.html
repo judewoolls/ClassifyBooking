@@ -5,20 +5,24 @@
 <h2>Company Dashboard</h2>
 <h3>Manager: {{ company.manager }}</h3>
 <details class="company-info">
-    <summary class="btn btn-info">Company info</summary>
+    <summary>Company info</summary>
     <p>Company Name: <strong>{{ company.name }}</strong></p>
+    <p>Address: {{ company.address }}</p>
+    <p>City: {{ company.city }}</p>
+    <p>Postcode: {{ company.postcode }}</p>
     <p>Email: {{ company.email}}</p>
     <p>Contact Number: <a href="tel:+{{ company.phone_number }}">{{ company.phone_number }}</a></p>
     <p><a href="{{ company.website}}">Visit company website</a></p>
 </details>
 <details>
-    <summary class="btn btn-info">Company forms</summary>
+    <summary>Company forms</summary>
     <div class="container" style="display: flex; flex-direction: column; gap: 10px;">
-        <p class="btn btn-success">Change Company information</p>
+        <p class="btn btn-success"><a href="{% url 'change_company_details' %}">Change Company information</a></p>
         <p class="btn btn-success">Add Coaches</p>
         <p class="btn btn-success">Remove Coaches</p>
         <p class="btn btn-success">Remove Clients</p>
         <p class="btn btn-success">View all bookings</p>
+        <p class="btn btn-success">View Transactions</p>
     </div>
 </details>
 {% endblock content %}

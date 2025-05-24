@@ -31,3 +31,22 @@ class CreateCompanyForm(forms.ModelForm):
         if commit:
             company.save()
         return company
+    
+class ChangeCompanyDetailsForm(forms.ModelForm):
+    class Meta:
+        model = Company
+        fields = ['name', 'address', 'city', 'postcode', 'phone_number', 'email', 'website']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.TextInput(attrs={'class': 'form-control'}),
+            'city': forms.TextInput(attrs={'class': 'form-control'}),
+            'postcode': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'website': forms.URLInput(attrs={'class': 'form-control'}),
+        }
+    def save(self, commit=True):
+        company = super().save(commit=False)
+        if commit:
+            company.save()
+        return company

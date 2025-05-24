@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from .models import Coach
 
 @login_required
@@ -40,3 +42,14 @@ def company_dashboard(request):
         return render(request, 'company/create_company.html', {
             'create_form': create_company_form,                                       
             })
+    
+def change_company_details(request):
+    if request.method == 'POST':
+        form = ChangeCompanyDetailsForm(request.POST, instance=request.user.profile.company)
+        if form.is_valid():
+            form.save()
+            return redirect('company_dashboard')  # update this to your URL name
+    else:
+        form = ChangeCompanyDetailsForm(instance=request.user.profile.company)
+
+    return render(request, 'company/change_company_details.html', {'form': form})
