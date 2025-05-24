@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from .models import Coach
@@ -53,3 +53,16 @@ def change_company_details(request):
         form = ChangeCompanyDetailsForm(instance=request.user.profile.company)
 
     return render(request, 'company/change_company_details.html', {'form': form})
+
+def add_coach(request):
+    if request.method == 'POST':
+        form = AddCoachForm(request.POST, user=request.user)
+        if form.is_valid():
+            company = request.user.profile.company
+            if company:
+                form.save(company)
+                return redirect('company_dashboard')
+    else:
+        form = AddCoachForm(user=request.user)
+
+    return render(request, 'company/add_coach.html', {'form': form})
