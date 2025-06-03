@@ -115,3 +115,16 @@ def remove_client(request):
     else:
         return render(request, 'company/remove_client.html', {'company': request.user.profile.company,
                                                               'form': RemoveClientForm(user=request.user)})
+    
+from booking.models import Booking
+
+def view_bookings(request):
+    # This function should be implemented to view bookings related to the company
+    bookings = Booking.objects.filter(event__coach__company=request.user.profile.company)
+    if not bookings:
+        messages.info(request, 'No bookings found for your company.')
+    else:
+        messages.success(request, f'Found {bookings.count()} bookings for your company.')
+    # Render the bookings in a template
+    return render(request, 'company/view_bookings.html', {'company': request.user.profile.company,
+                                                          'bookings': bookings})

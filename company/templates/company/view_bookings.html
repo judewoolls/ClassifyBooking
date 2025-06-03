@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Company Dashboard</h2>
+<h3>Your company {{ company.name }}</h3>
+<div class="container">
+    {% for booking in bookings %}
+    <div class="booking-details">
+        <h4>Booking ID: {{ booking.id }}</h4>
+        <p>Client: {{ booking.user }}</p>
+        <p>Coach: {{ booking.event.coach }}</p>
+        <p>Date: {{ booking.event.date_of_event }}</p>
+        <p>Time: {{ booking.event.start_time }} - {{ booking.event.end_time }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock content %}

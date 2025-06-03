@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block content %}
-<h2>Company Dashboard</h2>
+<h2>Company Dashboard for <strong>{{ company.name }}</strong></h2>
 <h3>Manager: {{ company.manager }}</h3>
 <div class="container">
     <div class="row">
@@ -26,7 +26,7 @@
                     <p class="btn btn-success"><a href="{% url 'add_coach' %}">Add Coach</a></p>
                     <p class="btn btn-success"><a href="{% url 'remove_coach' %}">Remove Coach</a></p>
                     <p class="btn btn-success"><a href="{% url 'remove_client' %}">Remove Client</a></p>
-                    <p class="btn btn-success">View all bookings</p>
+                    <p class="btn btn-success"><a href="{% url 'view_bookings' %}">View all bookings</a></p>
                     <p class="btn btn-success">View Transactions</p>
                 </div>
             </details>
