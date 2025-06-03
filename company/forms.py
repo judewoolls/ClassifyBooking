@@ -80,3 +80,21 @@ class AddCoachForm(forms.Form):
             Coach.objects.create(coach=coach, company=company)
         return coach
 
+
+class RemoveCoachForm(forms.Form):
+    coach = forms.ModelChoiceField(queryset=Coach.objects.none(), label="Select Coach", required=True)
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user')  # Expect the current user to be passed in
+        super().__init__(*args, **kwargs)
+
+        if hasattr(user, 'profile') and user.profile.company:
+            company = user.profile.company
+
+            # Get coaches in the same company
+            self.fields['coach'].queryset = Coach.objects.filter(company=company)
+
+    def save(self, company):
+        coach = self.cleaned_data['coach']
+        coach.delete()
+        return coach
