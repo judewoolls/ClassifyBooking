@@ -1,10 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, RemoveClientForm
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from .models import Coach
+from django.contrib.auth import get_user_model
 
 @login_required
 def company_dashboard(request):
@@ -90,3 +91,27 @@ def remove_coach(request):
         form = RemoveCoachForm(user=request.user)
     return render(request, 'company/remove_coach.html', {'form': form,
                                                           'company': request.user.profile.company})
+
+
+def remove_client(request):
+    if request.method == 'POST':
+        form = RemoveClientForm(request.POST, user=request.user)
+        if form.is_valid():
+            client = form.cleaned_data.get('client')
+            if client:
+                if Coach.objects.filter(coach=client).exists():
+                    messages.error(request, 'Client is also a coach and cannot be removed as a client.')
+                    return redirect('company_dashboard')
+                client.profile.company = None
+                client.profile.save()
+                messages.success(request, 'Client removed successfully.')
+                return redirect('company_dashboard')
+            else:
+                messages.error(request, 'Client not found or does not belong to your company.')
+                return redirect('company_dashboard')
+        else:
+            messages.error(request, 'Form is not valid.')
+            return redirect('company_dashboard')
+    else:
+        return render(request, 'company/remove_client.html', {'company': request.user.profile.company,
+                                                              'form': RemoveClientForm(user=request.user)})

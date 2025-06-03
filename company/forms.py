@@ -98,3 +98,21 @@ class RemoveCoachForm(forms.Form):
         coach = self.cleaned_data['coach']
         coach.delete()
         return coach
+
+class RemoveClientForm(forms.Form):
+    client = forms.ModelChoiceField(queryset=User.objects.none(), label="Select Client", required=True)
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user')  # Expect the current user to be passed in
+        super().__init__(*args, **kwargs)
+
+        if hasattr(user, 'profile') and user.profile.company:
+            company = user.profile.company
+
+            # Get clients in the same company
+            self.fields['client'].queryset = User.objects.filter(profile__company=company).exclude(id=user.id)
+
+    def save(self, company):
+        client = self.cleaned_data['client']
+        client.delete()
+        return client
