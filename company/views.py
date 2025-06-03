@@ -120,7 +120,7 @@ from booking.models import Booking
 
 def view_bookings(request):
     # This function should be implemented to view bookings related to the company
-    bookings = Booking.objects.filter(event__coach__company=request.user.profile.company)
+    bookings = Booking.objects.filter(event__coach__company=request.user.profile.company).order_by('-event__date_of_event')
     if not bookings:
         messages.info(request, 'No bookings found for your company.')
     else:
@@ -128,3 +128,13 @@ def view_bookings(request):
     # Render the bookings in a template
     return render(request, 'company/view_bookings.html', {'company': request.user.profile.company,
                                                           'bookings': bookings})
+
+def delete_booking(request, booking):
+    # This function should be implemented to delete a booking
+    booking = Booking.objects.get(id=booking)
+    if booking.event.coach.company == request.user.profile.company:
+        booking.delete()
+        messages.success(request, 'Booking deleted successfully.')
+    else:
+        messages.error(request, 'You do not have permission to delete this booking.')
+    return redirect('view_bookings')  # Redirect to the bookings view after deletion
