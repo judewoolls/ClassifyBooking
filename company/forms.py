@@ -92,7 +92,7 @@ class RemoveCoachForm(forms.Form):
             company = user.profile.company
 
             # Get coaches in the same company
-            self.fields['coach'].queryset = Coach.objects.filter(company=company)
+            self.fields['coach'].queryset = Coach.objects.filter(company=company).exclude(coach__id=user.id)
 
     def save(self, company):
         coach = self.cleaned_data['coach']

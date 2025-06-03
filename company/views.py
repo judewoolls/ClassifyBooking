@@ -56,7 +56,8 @@ def change_company_details(request):
     else:
         form = ChangeCompanyDetailsForm(instance=request.user.profile.company)
 
-    return render(request, 'company/change_company_details.html', {'form': form})
+    return render(request, 'company/change_company_details.html', {'form': form,
+                                                                   'company': request.user.profile.company})
 
 def add_coach(request):
     if request.method == 'POST':
@@ -70,7 +71,8 @@ def add_coach(request):
     else:
         form = AddCoachForm(user=request.user)
 
-    return render(request, 'company/add_coach.html', {'form': form})
+    return render(request, 'company/add_coach.html', {'form': form,
+                                                      'company': request.user.profile.company})
 
 def remove_coach(request):
     if request.method == 'POST':
@@ -86,4 +88,5 @@ def remove_coach(request):
                 return redirect('company_dashboard')  # Correct redirect
     else:
         form = RemoveCoachForm(user=request.user)
-    return render(request, 'company/remove_coach.html', {'form': form})
+    return render(request, 'company/remove_coach.html', {'form': form,
+                                                          'company': request.user.profile.company})
