@@ -6,12 +6,14 @@
 <h3>Your company {{ company.name }}</h3>
 <div class="container">
     {% for booking in bookings %}
-    <div class="booking-details">
-        <h4>Booking ID: {{ booking.id }}</h4>
-        <p>Client: {{ booking.user }}</p>
-        <p>Coach: {{ booking.event.coach }}</p>
-        <p>Date: {{ booking.event.date_of_event }}</p>
-        <p>Time: {{ booking.event.start_time }} - {{ booking.event.end_time }}</p>
+    <div class="card col-12 col-md-4 col-lg-2" style="border: 2px black solid;">
+        <h4 class="card-title">Booking ID: {{ booking.id }}</h4>
+        <div class="card-body">
+            <p>Client: {{ booking.user }}</p>
+            <p>Coach: {{ booking.event.coach }}</p>
+            <p>Date: {{ booking.event.date_of_event }}</p>
+            <p>Time: {{ booking.event.start_time }} - {{ booking.event.end_time }}</p>
+        </div>
     </div>
     {% endfor %}
 </div>
