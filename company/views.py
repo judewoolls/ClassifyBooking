@@ -82,7 +82,7 @@ def remove_coach(request):
             coach = form.cleaned_data.get('coach')
             if coach:
                 coach.delete()
-                messages.success(request, 'Coach removed successfully.')
+                messages.success(request, f'Coach: {coach} removed successfully.')
                 return redirect('company_dashboard')  # Correct redirect
             else:
                 messages.error(request, 'Coach not found or does not belong to your company.')
@@ -100,11 +100,11 @@ def remove_client(request):
             client = form.cleaned_data.get('client')
             if client:
                 if Coach.objects.filter(coach=client).exists():
-                    messages.error(request, 'Client is also a coach and cannot be removed as a client.')
+                    messages.error(request, f'{client} is also a coach and cannot be removed as a client.')
                     return redirect('company_dashboard')
                 client.profile.company = None
                 client.profile.save()
-                messages.success(request, 'Client removed successfully.')
+                messages.success(request, f'Client: {client} removed successfully.')
                 return redirect('company_dashboard')
             else:
                 messages.error(request, 'Client not found or does not belong to your company.')
@@ -133,8 +133,8 @@ def delete_booking(request, booking):
     # This function should be implemented to delete a booking
     booking = Booking.objects.get(id=booking)
     if booking.event.coach.company == request.user.profile.company:
+        messages.success(request, f'Booking:{booking.id} deleted successfully.')
         booking.delete()
-        messages.success(request, 'Booking deleted successfully.')
     else:
         messages.error(request, 'You do not have permission to delete this booking.')
     return redirect('view_bookings')  # Redirect to the bookings view after deletion
