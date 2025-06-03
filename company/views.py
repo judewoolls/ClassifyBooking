@@ -35,7 +35,7 @@ def company_dashboard(request):
                 coach.save()
 
 
-
+                messages.success(request, 'Company created successfully.')
                 return redirect('company_dashboard')  # update this to your URL name
         else:
             form = CreateCompanyForm()
@@ -49,7 +49,10 @@ def change_company_details(request):
         form = ChangeCompanyDetailsForm(request.POST, instance=request.user.profile.company)
         if form.is_valid():
             form.save()
+            messages.success(request, 'Company details updated successfully.')
             return redirect('company_dashboard')  # update this to your URL name
+        else:
+            messages.error(request, 'Form is not Valid')
     else:
         form = ChangeCompanyDetailsForm(instance=request.user.profile.company)
 
