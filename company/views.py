@@ -60,6 +60,17 @@ def change_company_details(request):
     return render(request, 'company/change_company_details.html', {'form': form,
                                                                    'company': request.user.profile.company})
 
+def view_coaches(request):
+    # This function should be implemented to view coaches related to the company
+    coaches = Coach.objects.filter(company=request.user.profile.company).order_by('coach__username')
+    if not coaches:
+        messages.info(request, 'No coaches found for your company.')
+    else:
+        messages.success(request, f'Found {coaches.count()} coaches for your company.')
+    # Render the coaches in a template
+    return render(request, 'company/view_coaches.html', {'company': request.user.profile.company,
+                                                         'coaches': coaches})
+
 def add_coach(request):
     if request.method == 'POST':
         form = AddCoachForm(request.POST, user=request.user)
