@@ -1,7 +1,7 @@
 from allauth.account.forms import SignupForm
 from django import forms
 from django.contrib.auth.models import User
-from company.models import Company, Coach
+from company.models import Company, Coach, Venue
 
 class CustomSignupForm(SignupForm):
     company = forms.ModelChoiceField(queryset=Company.objects.all(), empty_label="Select your company", required=False)
@@ -99,3 +99,20 @@ class RemoveCoachForm(forms.Form):
         coach.delete()
         return coach
 
+class AddVenueForm(forms.ModelForm):
+    class Meta:
+        model = Venue
+        fields = ['name', 'address', 'city', 'postcode']
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)  # Extract the 'user' argument
+        super().__init__(*args, **kwargs)
+        if user and hasattr(user, 'profile') and user.profile.company:
+            # Optionally customize the form based on the user
+            self.fields['name'].widget.attrs.update({'placeholder': 'Enter venue name'})
+
+    def save(self, commit=True):
+        venue = super().save(commit=False)
+        if commit:
+            venue.save()
+        return venue

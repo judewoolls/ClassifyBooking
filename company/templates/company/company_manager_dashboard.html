@@ -14,8 +14,8 @@
                 <p>City: {{ company.city }}</p>
                 <p>Postcode: {{ company.postcode }}</p>
                 <p>Email: {{ company.email}}</p>
-                <p>Contact Number: <a href="tel:+{{ company.phone_number }}">{{ company.phone_number }}</a></p>
-                <p><a href="{{ company.website}}">Visit company website</a></p>
+                <p>Contact Number: <a href="tel:+{{ company.phone_number }}" style="color: blue; text-decoration: underline;">{{ company.phone_number }}</a></p>
+                <p><a href="{{ company.website}}" style="color: blue; text-decoration: underline;">Visit company website</a></p>
             </details>
         </div>
         <div class="col-12 col-md-6">
@@ -23,6 +23,7 @@
                 <summary>Company forms</summary>
                 <div class="container" style="display: flex; flex-direction: column; gap: 10px;">
                     <p class="btn btn-success"><a href="{% url 'change_company_details' %}">Change Company information</a></p>
+                    <p class="btn btn-success"><a href="{% url 'manage_venues' %}">Manage Venues</a></p>
                     <p class="btn btn-success"><a href="{% url 'view_coaches' %}">View all coaches</a></p>
                     <p class="btn btn-success"><a href="{% url 'view_bookings' %}">View all bookings</a></p>
                     <p class="btn btn-success"><a href="{% url 'view_clients' %}">View all clients</a></p>

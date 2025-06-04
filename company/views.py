@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -169,3 +169,48 @@ def delete_booking(request, booking):
     else:
         messages.error(request, 'You do not have permission to delete this booking.')
     return redirect('view_bookings')  # Redirect to the bookings view after deletion
+
+from company.models import Venue
+
+def manage_venues(request):
+    try:
+        venues = request.user.profile.company.venues.all()
+        messages.success(request, f'Found {venues.count()} venues for your company.')
+        return render(request, 'company/manage_venues.html', {'company': request.user.profile.company,
+                                                                'venues': venues})
+    except AttributeError:
+        messages.error(request, 'You do not have a company associated with your profile.')
+        return redirect('company_dashboard')
+    except Exception as e:
+        messages.error(request, f'An error occurred while fetching venues: {str(e)}')
+        return redirect('company_dashboard')
+    
+def add_venue(request):
+    if not hasattr(request.user, 'profile') or not request.user.profile.company:
+        messages.error(request, 'You do not have a company associated with your profile.')
+        return redirect('company_dashboard')
+
+    if request.method == 'POST':
+        form = AddVenueForm(request.POST, user=request.user)  # Pass the user to the form
+        if form.is_valid():
+            venue = form.save(commit=False)
+            venue.company = request.user.profile.company  # Associate the venue with the user's company
+            venue.save()  # Save the venue to the database
+            messages.success(request, 'Venue added successfully.')
+            return redirect('manage_venues')
+        else:
+            messages.error(request, 'Form is invalid. Please correct the errors.')
+    else:
+        form = AddVenueForm(user=request.user)  # Pass the user to the form
+
+    return render(request, 'company/add_venue.html', {'form': form,
+                                                      'company': request.user.profile.company})
+def remove_venue(request, venue_id):
+    # This function should be implemented to remove a venue
+    try:
+        venue = Venue.objects.get(id=venue_id, company=request.user.profile.company)
+        venue.delete()
+        messages.success(request, f'Venue {venue.name} removed successfully.')
+    except Venue.DoesNotExist:
+        messages.error(request, 'Venue not found or does not belong to your company.')
+    return redirect('manage_venues')  # Redirect to the venues management view after removal
