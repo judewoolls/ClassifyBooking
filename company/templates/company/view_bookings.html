@@ -6,21 +6,31 @@
 <h3>Your company {{ company.name }}</h3>
 <div class="container">
     <div class="row">
-        {% for booking in bookings %}
-        <div class="card col-12 col-md-4 col-lg-2" style="border: 2px black solid;">
-            <h4 class="card-title">Booking ID: {{ booking.id }}</h4>
-            <div class="card-body">
-                <p>Client: {{ booking.user }}</p>
-                <p>Coach: {{ booking.event.coach }}</p>
-                <p>Date: {{ booking.event.date_of_event }}</p>
-                <p>Time: {{ booking.event.start_time }} - {{ booking.event.end_time }}</p>
-                <form action="{% url 'delete_booking' booking.id %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Delete Booking</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Event</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td>{{ booking.user }}</td>
+                    <td>{{ booking.event.event_name }}</td>
+                    <td>{{ booking.event.date_of_event }}</td>
+                    <td>
+                        <form action="{% url 'delete_booking' booking.id %}" method="post" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock content %}
