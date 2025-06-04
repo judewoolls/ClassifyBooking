@@ -4,7 +4,6 @@
 {% block content %}
 <h2>Company Dashboard</h2>
 <h3>Your company {{ company.name }}</h3>
-<p>Please note any coach that is deleted is then added to the client list</p>
 <div class="container">
     <div class="row">
     <table class="table table-striped">
@@ -22,7 +21,10 @@
                 <td>{{ client.id }}</td>
                 <td>{{ client.username }}</td>
                 <td>{{ client.email }}</td>
-                <td><button class="btn btn-primary">View</button></td>
+                <td><form action="{% url 'client_details' client.id %}" method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-primary" type="submit">View</button>
+                </form></td>
             </tr>
             {% endfor %}
         </tbody>

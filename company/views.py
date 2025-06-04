@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, RemoveClientForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -103,28 +103,38 @@ def view_clients(request):
     return render(request, 'company/view_clients.html', {'company': request.user.profile.company,
                                                          'clients': clients})
 
-def remove_client(request):
+def client_details(request, client_id):
+    # This function should be implemented to view details of a specific client
     if request.method == 'POST':
-        form = RemoveClientForm(request.POST, user=request.user)
-        if form.is_valid():
-            client = form.cleaned_data.get('client')
-            if client:
-                if Coach.objects.filter(coach=client).exists():
-                    messages.error(request, f'{client} is also a coach and cannot be removed as a client.')
-                    return redirect('company_dashboard')
-                client.profile.company = None
-                client.profile.save()
-                messages.success(request, f'Client: {client} removed successfully.')
-                return redirect('company_dashboard')
-            else:
-                messages.error(request, 'Client not found or does not belong to your company.')
-                return redirect('company_dashboard')
-        else:
-            messages.error(request, 'Form is not valid.')
-            return redirect('company_dashboard')
+        try:
+            client = User.objects.get(id=client_id, profile__company=request.user.profile.company)
+            return render(request, 'company/client_details.html', {'client': client,
+                                                                   'company': request.user.profile.company})
+        except User.DoesNotExist:
+            messages.error(request, 'Client not found or does not belong to your company.')
+            return redirect('view_clients')
     else:
-        return render(request, 'company/remove_client.html', {'company': request.user.profile.company,
-                                                              'form': RemoveClientForm(user=request.user)})
+        messages.error(request, 'Invalid request method.')
+        return redirect('view_clients')
+
+def remove_client(request, client_id):
+    if request.method == 'POST':
+        try:
+            client = User.objects.get(id=client_id, profile__company=request.user.profile.company)
+            if client.profile.company == request.user.profile.company:
+                if Coach.objects.filter(coach=client, company=request.user.profile.company).exists():
+                    messages.error(request, 'The selected client is also a coach and cannot be removed as a client.')
+                    return redirect('view_clients')
+                client.profile.company = None  # Remove the client from the company
+                client.profile.save()
+                messages.success(request, f'Client {client.username} removed successfully.')
+                return redirect('view_clients')  # Redirect to the clients view after removal
+            else:
+                messages.error(request, 'You do not have permission to remove this client.')
+                return redirect('company_dashboard')  # Redirect to the dashboard if permission denied
+        except User.DoesNotExist:
+            messages.error(request, 'Client not found or does not belong to your company.')
+            return redirect('view_clients')
     
 from booking.models import Booking
 

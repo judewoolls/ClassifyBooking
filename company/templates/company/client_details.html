@@ -14,7 +14,7 @@
                 <p><strong>First Name:</strong> {{ client.first_name }}</p>
                 <p><strong>Last Name:</strong> {{ client.last_name }}</p>
                 <p><strong>Date Joined:</strong> {{ client.date_joined }}</p>
-                <form action="{% url 'remove_client' %}" method="post">
+                <form action="{% url 'remove_client' client.id %}" method="post">
                     {% csrf_token %}
                     <input type="hidden" name="client_id" value="{{ client.id }}">
                     <button type="submit" class="btn btn-danger">Delete Client</button>
