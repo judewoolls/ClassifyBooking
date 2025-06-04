@@ -92,6 +92,16 @@ def remove_coach(request):
     return render(request, 'company/remove_coach.html', {'form': form,
                                                           'company': request.user.profile.company})
 
+def view_clients(request):
+    # This function should be implemented to view clients related to the company
+    clients = User.objects.filter(profile__company=request.user.profile.company).exclude(id=request.user.id).exclude(id=request.user.profile.company.manager.id).order_by('username')
+    if not clients:
+        messages.info(request, 'No clients found for your company.')
+    else:
+        messages.success(request, f'Found {clients.count()} clients for your company.')
+    # Render the clients in a template
+    return render(request, 'company/view_clients.html', {'company': request.user.profile.company,
+                                                         'clients': clients})
 
 def remove_client(request):
     if request.method == 'POST':

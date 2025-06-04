@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Company Dashboard</h2>
+<h3>Your company {{ company.name }}</h3>
+<p>Please note any coach that is deleted is then added to the client list</p>
+<div class="container">
+    <div class="row">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in clients %}
+            <tr>
+                <td>{{ client.id }}</td>
+                <td>{{ client.username }}</td>
+                <td>{{ client.email }}</td>
+                <td><button class="btn btn-primary">View</button></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock content %}
