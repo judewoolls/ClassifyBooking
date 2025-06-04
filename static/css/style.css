@@ -78,6 +78,16 @@ li {
     display: none;
 }
 
+a {
+    text-decoration: none;
+    color: white;
+}
+
+#woollswebsites-link {
+    text-decoration: underline;
+    color: #38b6ff;
+}
+
 @media screen and (max-width: 600px) {
     #leaderboard {
         max-width: 75%;
