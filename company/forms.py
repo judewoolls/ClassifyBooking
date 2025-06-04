@@ -116,3 +116,29 @@ class AddVenueForm(forms.ModelForm):
         if commit:
             venue.save()
         return venue
+
+class EditVenueForm(forms.Form):
+    name = forms.CharField(max_length=200, label="Venue Name", required=True)
+    address = forms.CharField(max_length=200, label="Address", required=True)
+    city = forms.CharField(max_length=100, label="City", required=True)
+    postcode = forms.CharField(max_length=20, label="Postcode", required=True)
+
+    def __init__(self, *args, **kwargs):
+        self.venue_id = kwargs.pop('venue_id', None)
+        super().__init__(*args, **kwargs)
+
+        if self.venue_id:
+            venue = Venue.objects.get(venue_id=self.venue_id)  # Use venue_id here
+            self.fields['name'].initial = venue.name
+            self.fields['address'].initial = venue.address
+            self.fields['city'].initial = venue.city
+            self.fields['postcode'].initial = venue.postcode
+
+    def save(self):
+        venue = Venue.objects.get(venue_id=self.venue_id)  # Use venue_id here
+        venue.name = self.cleaned_data['name']
+        venue.address = self.cleaned_data['address']
+        venue.city = self.cleaned_data['city']
+        venue.postcode = self.cleaned_data['postcode']
+        venue.save()
+        return venue

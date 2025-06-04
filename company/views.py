@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm
+from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -147,7 +148,6 @@ def remove_client(request, client_id):
             messages.error(request, 'Client not found or does not belong to your company.')
             return redirect('view_clients')
     
-from booking.models import Booking
 
 def view_bookings(request):
     # This function should be implemented to view bookings related to the company
@@ -214,12 +214,49 @@ def add_venue(request):
 
     return render(request, 'company/add_venue.html', {'form': form,
                                                       'company': request.user.profile.company})
+
 def remove_venue(request, venue_id):
-    # This function should be implemented to remove a venue
     try:
-        venue = Venue.objects.get(id=venue_id, company=request.user.profile.company)
-        venue.delete()
-        messages.success(request, f'Venue {venue.name} removed successfully.')
+        # Fetch the venue for the user's company
+        venue = Venue.objects.get(venue_id=venue_id, company=request.user.profile.company)
+
+        # Count events and related bookings before deleting
+        events = venue.event_venue.all()  # related_name from Event to Venue
+        event_count = events.count()
+
+        booking_count = sum(event.event_booking.count() for event in events)
+
+        venue_name = venue.name
+        venue.delete()  # This cascades to Events and Bookings
+
+        messages.success(
+            request,
+            f'Venue "{venue_name}" removed. {event_count} events and {booking_count} bookings were deleted.'
+        )
+
     except Venue.DoesNotExist:
         messages.error(request, 'Venue not found or does not belong to your company.')
-    return redirect('manage_venues')  # Redirect to the venues management view after removal
+
+    return redirect('manage_venues')
+
+
+def edit_venue(request, venue_id):
+    try:
+        # Use venue_id as the primary key and filter by the user's company
+        venue = Venue.objects.get(venue_id=venue_id, company=request.user.profile.company)
+        if request.method == 'POST':
+            form = EditVenueForm(request.POST, venue_id=venue_id)  # Pass venue_id to the form
+            if form.is_valid():
+                form.save()  # Save the updated venue
+                messages.success(request, 'Venue updated successfully.')
+                return redirect('manage_venues')
+            else:
+                messages.error(request, 'Form is invalid. Please correct the errors.')
+        else:
+            form = EditVenueForm(venue_id=venue_id)  # Pass venue_id to the form
+        return render(request, 'company/edit_venue.html', {'form': form,
+                                                           'company': request.user.profile.company,
+                                                           'venue': venue})
+    except Venue.DoesNotExist:
+        messages.error(request, 'Venue not found or does not belong to your company.')
+        return redirect('manage_venues')  # Redirect to the venues management view if venue not found

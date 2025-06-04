@@ -13,7 +13,11 @@
                 <p><strong>Address:</strong> {{ venue.address }}</p>
                 <p><strong>Postcode</strong> {{ venue.postcode }}</p>
                 <p><strong>Company:</strong> {{ venue.company.name }}</p>
-                <form action="#" method="post">
+                <form action="{% url 'edit_venue' venue.venue_id %}" method="get">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Edit Venue</button>
+                </form>
+                <form action="{% url 'remove_venue' venue.venue_id %}" method="post">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger">Delete Venue</button>
                 </form>

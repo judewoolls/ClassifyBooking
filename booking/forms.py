@@ -93,7 +93,7 @@ class MultiEventForm(forms.ModelForm):
         required=True
     )
     venue = forms.ModelChoiceField(
-        queryset=Venue.objects.all(),
+        queryset=Venue.objects.none(),  # Default to none
         widget=forms.Select(attrs={'class': 'form-control'}),
         label="Venue",
         required=True
@@ -112,14 +112,16 @@ class MultiEventForm(forms.ModelForm):
                                                  'min': 1}),
             'status': forms.Select(attrs={'class': 'form-control'}),
         }
-        def __init__(self, *args, **kwargs):
-            user = kwargs.pop('user', None)  # Extract the user from kwargs
-            super().__init__(*args, **kwargs)
-            if user:
-                try:
-                    coach = Coach.objects.get(user=user)  # Get the coach associated with the user
-                    # Filter venues by the coach's company
-                    self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
-                except Coach.DoesNotExist:
-                    # Handle the case where the user is not a coach.
-                    self.fields['venue'].queryset = Venue.objects.none()
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)  # Extract the user from kwargs
+        super().__init__(*args, **kwargs)
+        if user:
+            try:
+                coach = Coach.objects.get(coach=user)  # Get the coach associated with the user
+                # Filter venues by the coach's company
+                self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
+                self.fields['coach'].queryset = Coach.objects.filter(company=coach.company)
+            except Coach.DoesNotExist:
+                # Handle the case where the user is not a coach.
+                self.fields['venue'].queryset = Venue.objects.none()
