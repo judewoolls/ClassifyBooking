@@ -45,8 +45,19 @@ class Venue(models.Model):
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)
-
+    token_count = models.IntegerField(default=0)
 
     def __str__(self):
         company_name = self.company.name if self.company else "No Company"
         return f"{self.user.username} - {company_name}"
+    
+
+class Token(models.Model):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tokens')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    purchased_on = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Token for {self.user.username} - Used: {self.used}"
