@@ -19,14 +19,13 @@
             <tr>
                 <td>{{ venue.name }}</td>
                 <td>{{ venue.postcode }}</td>
-                <td><button class="btn btn-primary">View</button></td>
+                <td><button class="btn btn-primary"><a href="{% url 'view_venue' venue.venue_id %}">View</a></button></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     <div class="row d-flex justify-content-around">
         <button class="btn btn-success col-4"><a href="{% url 'add_venue' %}">Add Venue</a></button>
-        <button class="btn btn-danger col-4"><a href="{% url 'remove_coach' %}">Remove Coach</a></button>
     </div>
     </div>
 </div>

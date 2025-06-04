@@ -181,9 +181,18 @@ def manage_venues(request):
     except AttributeError:
         messages.error(request, 'You do not have a company associated with your profile.')
         return redirect('company_dashboard')
-    except Exception as e:
-        messages.error(request, f'An error occurred while fetching venues: {str(e)}')
-        return redirect('company_dashboard')
+    # except Exception as e:
+    #     messages.error(request, f'An error occurred while fetching venues: {str(e)}')
+    #     return redirect('company_dashboard')
+    
+def view_venue(request, venue_id):
+    try:
+        venue = Venue.objects.get(venue_id=venue_id, company=request.user.profile.company)
+        return render(request, 'company/view_venue.html', {'venue': venue,
+                                                           'company': request.user.profile.company})
+    except Venue.DoesNotExist:
+        messages.error(request, 'Venue not found or does not belong to your company.')
+        return redirect('manage_venues')
     
 def add_venue(request):
     if not hasattr(request.user, 'profile') or not request.user.profile.company:
