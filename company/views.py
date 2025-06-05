@@ -18,7 +18,8 @@ def company_dashboard(request):
             return render(request, 'company/company_manager_dashboard.html', {'company': company})
         # Else if they are a coach or user (you can check for their role)
         else:
-            return render(request, 'company/company_user_dashboard.html', {'company': company})
+            return render(request, 'company/company_user_dashboard.html', {'company': company,
+                                                                           'user': request.user})
     else:
         # If the user doesn't have a company, redirect to company creation page
         create_company_form = CreateCompanyForm(request.POST)

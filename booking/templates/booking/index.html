@@ -35,6 +35,10 @@ ClassFit | Classes | {{ current_date }}
                 <button type="submit" class="btn btn-primary" aria-label="Add Multi Event">Duplicate Schedule</button>
             </form>
         </div>
+        {% else %}
+        <div class="col-12 mt-3">
+            <h4 class="text-center">You have {{ user.profile.token_count }} session tokens</h4>
+        </div>
         {% endif %}
         <!-- Event Entries Column -->
         <div class="col-12 mt-3 left">
