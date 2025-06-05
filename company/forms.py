@@ -146,7 +146,7 @@ class EditVenueForm(forms.Form):
 # Tokens and purchases
 
 class PurchaseTokenForm(forms.Form):
-    token_count = forms.IntegerField(min_value=1, label="Number of Tokens", required=True)
+    token_count = forms.IntegerField(min_value=1, max_value=10, label="Number of Tokens", required=True)
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)  # Extract the 'user' argument

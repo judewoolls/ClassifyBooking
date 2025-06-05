@@ -38,6 +38,9 @@ ClassFit | Classes | {{ current_date }}
         {% else %}
         <div class="col-12 mt-3">
             <h4 class="text-center">You have {{ user.profile.token_count }} session tokens</h4>
+            <div class="text-center">
+                <a href="{% url 'purchase_tokens' %}" class="btn btn-success">Purchase tokens</a>
+            </div>
         </div>
         {% endif %}
         <!-- Event Entries Column -->
