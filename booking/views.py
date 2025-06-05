@@ -114,8 +114,16 @@ def cancel_event(request, event_id):
     if request.method == 'POST':
         booking = Booking.objects.filter(event=event, user=user).first()
         if booking:
+            # Find and refund the token linked to this booking
+            token = Token.objects.filter(user=user, booking=booking, used=True).first()
+            if token:
+                token.used = False
+                token.booking = None
+                token.save()
+            else:
+                messages.error(request, "No token found for this booking to refund.")
             booking.delete()
-            messages.success(request, "Booking cancelled successfully")
+            messages.success(request, "Booking cancelled successfully and token refunded.")
         else:
             messages.error(request, "You do not have a booking for this event")
         return redirect('event_search', date=event.date_of_event)
