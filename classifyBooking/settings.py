@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    'booking',
+    'booking.apps.BookingConfig',
     'homepage',
     'logbook',
     'company',
