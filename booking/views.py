@@ -165,74 +165,76 @@ def create_event(request):
     return render(request, "booking/create_event.html", {'form': form})
 
 
+
 @login_required
 def create_multi_event(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         form = MultiEventForm(request.POST, user=request.user)
         if form.is_valid():
-            date_input = form.cleaned_data['date_of_event']
-            coach_input = Coach.objects.get(coach=request.user)
-            venue_input = form.cleaned_data['venue']  # Get the venue from the form
-            start_time = form.cleaned_data['start_time']
-            end_time = form.cleaned_data['end_time']
-            frequency_input = form.cleaned_data['frequency']
-            gap_input = form.cleaned_data['gap']
-            event_name = form.cleaned_data['event_name']
-            description = form.cleaned_data['description']
-            capacity = form.cleaned_data['capacity']
-            status = form.cleaned_data['status']
+
+            # ── form data ────────────────────────────────────────────
+            date_input      = form.cleaned_data["date_of_event"]
+            coach_input     = get_object_or_404(Coach, coach=request.user)
+            venue_input     = form.cleaned_data["venue"]
+            start_time      = form.cleaned_data["start_time"]
+            end_time        = form.cleaned_data["end_time"]
+            frequency_input = form.cleaned_data["frequency"]          # total classes
+            gap_input       = form.cleaned_data["gap"]                # minutes
+            event_name      = form.cleaned_data["event_name"]
+            description     = form.cleaned_data["description"]
+            capacity        = form.cleaned_data["capacity"]
+            status          = form.cleaned_data["status"]
+            # ─────────────────────────────────────────────────────────
 
             events_to_create = []
 
-            # Create the first event
-            first_event = Event(
-                coach=coach_input,
-                event_name=event_name,
-                description=description,
-                date_of_event=date_input,
-                venue=venue_input,  # Set the venue
-                capacity=capacity,
-                start_time=start_time,
-                end_time=end_time,
-                status=status,
+            # duration and gap as timedeltas
+            duration_td = (
+                datetime.combine(date_input, end_time)
+                - datetime.combine(date_input, start_time)
             )
-            events_to_create.append(first_event)
+            gap_td = timedelta(minutes=gap_input)
 
-            # Handle repetition logic
-            if frequency_input > 1:
-                current_start_datetime = datetime.combine(date_input, end_time)
-                duration_timedelta = datetime.combine(date_input, end_time) - datetime.combine(date_input, start_time)
+            # first class start datetime
+            current_start_dt = datetime.combine(date_input, start_time)
 
-                for _ in range(frequency_input - 1):
-                    current_start_datetime += timedelta(minutes=gap_input)
-                    next_end_datetime = current_start_datetime + duration_timedelta
+            # loop for total number of classes
+            for _ in range(frequency_input):
+                current_end_dt = current_start_dt + duration_td
 
-                    if current_start_datetime.date() == date_input:
-                        repeated_event = Event(
-                            coach=coach_input,
-                            event_name=event_name,
-                            description=description,
-                            date_of_event=date_input,
-                            venue=venue_input,  # Set the venue
-                            capacity=capacity,
-                            start_time=current_start_datetime.time(),
-                            end_time=next_end_datetime.time(),
-                            status=status,
-                        )
-                        events_to_create.append(repeated_event)
-                    else:
-                        break
+                # safety: stop if we cross midnight
+                if current_start_dt.date() != date_input:
+                    break
 
-            # Bulk create all events
+                events_to_create.append(
+                    Event(
+                        coach=coach_input,
+                        event_name=event_name,
+                        description=description,
+                        date_of_event=date_input,
+                        venue=venue_input,
+                        capacity=capacity,
+                        start_time=current_start_dt.time(),
+                        end_time=current_end_dt.time(),
+                        status=status,
+                    )
+                )
+
+                # next class starts after current class ends + gap
+                current_start_dt = current_end_dt + gap_td
+
+            # bulk-insert all generated events
             Event.objects.bulk_create(events_to_create)
-            messages.success(request, "Events created successfully")
-            return redirect('event_search', date=date_input)
-        else:
-            messages.error(request, 'Form is invalid. Please correct the errors.')
-            return render(request, 'booking/multi_event.html', {'form': form})
-    else:
-        form = MultiEventForm(user=request.user)
-    return render(request, 'booking/multi_event.html', {'form': form})
+            messages.success(request, "Events created successfully.")
+            return redirect("event_search", date=date_input)
+
+        # form invalid
+        messages.error(request, "Form is invalid. Please correct the errors.")
+        return render(request, "booking/multi_event.html", {"form": form})
+
+    # GET request
+    form = MultiEventForm(user=request.user)
+    return render(request, "booking/multi_event.html", {"form": form})
 
 
 @login_required
