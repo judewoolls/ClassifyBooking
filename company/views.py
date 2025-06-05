@@ -18,8 +18,10 @@ def company_dashboard(request):
             return render(request, 'company/company_manager_dashboard.html', {'company': company})
         # Else if they are a coach or user (you can check for their role)
         else:
+            tokens = Token.objects.filter(user=request.user, company=company, used=False).count()
             return render(request, 'company/company_user_dashboard.html', {'company': company,
-                                                                           'user': request.user})
+                                                                           'user': request.user,
+                                                                           'tokens': tokens})
     else:
         # If the user doesn't have a company, redirect to company creation page
         create_company_form = CreateCompanyForm(request.POST)

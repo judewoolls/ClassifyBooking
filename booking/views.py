@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from .forms import EventForm, MultiEventForm
 from datetime import date, timedelta
 from django.shortcuts import render, redirect
+from company.models import Token
 
 import logging
 
@@ -58,6 +59,7 @@ def event_search(request, date):
         event.is_user_booked = event.is_user_booked(request.user)
 
     is_coach = check_for_coach(request)
+    tokens = Token.objects.filter(user=request.user, used=False, company=user_company).count()
 
     return render(request, "booking/index.html", {
         "events": events,
@@ -65,26 +67,43 @@ def event_search(request, date):
         "previous_date": previous_date,
         "next_date": next_date,
         'is_coach': is_coach,
+        'tokens': tokens,
     })
 
 
-# used to create a booking
+# used to create a booking with tokens
+
 def book_event(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
+
     if request.method == 'POST':
+        # Check if event is full
         if event.is_full():
             messages.error(request, "Event is full")
             return redirect('event_search', date=event.date_of_event)
 
+        # Check if user has already booked
         if event.is_user_booked(request.user):
             messages.error(request, "You have already booked this event")
             return redirect('event_search', date=event.date_of_event)
 
-        booking = Booking(event=event, user=request.user)
-        booking.save()
-        messages.success(request, "Event booked successfully")
+        # Check for available token
+        token = Token.objects.filter(user=request.user, used=False).first()
+        if not token:
+            messages.error(request, "You don't have any available tokens to book this class.")
+            return redirect('event_search', date=event.date_of_event)
+
+        # Mark token as used
+        token.used = True
+        token.save()
+
+        # Proceed with booking
+        Booking.objects.create(event=event, user=request.user)
+        messages.success(request, "Event booked successfully. 1 token has been used.")
         return redirect('event_search', date=event.date_of_event)
+
     return redirect('event_search', date=event.date_of_event)
+
 
 
 # used to cancel a booking

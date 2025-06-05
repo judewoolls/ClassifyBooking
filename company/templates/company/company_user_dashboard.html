@@ -14,7 +14,7 @@
                 <li><a href="{{ company.website}}" style="text-decoration: underline; color: blue;">Visit company website</a></li>
             </ul>
         </div>
-        <p>You have {{ user.profile.token_count }} session tokens</p>
+        <p>You have {{ tokens }} session tokens</p>
         <a href="{% url 'purchase_tokens' %}" class="btn btn-success col-2">Purchase tokens</a>
     </div>
 </div>
