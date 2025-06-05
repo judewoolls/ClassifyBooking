@@ -71,11 +71,15 @@ ClassFit | Classes | {{ current_date }}
                                 </form>
                             {% else %}
                                 {% if event.is_user_booked %}
+                                    <p class="text-success">You are booked for this event</p>
                                     <form action="{% url 'cancel_event' event.id %}" method="POST">
                                         {% csrf_token %}
                                         <input type="hidden" name="event_id" value="{{ event.id }}">
                                         <button type="submit" class="btn btn-danger" aria-label="Cancel Booking">Cancel</button>
                                     </form>
+                                {% elif tokens == 0 %}
+                                    <p class="text-warning">You have no tokens left. Please purchase more to book this event.</p>
+                                    <a href="{% url 'purchase_tokens' %}" class="btn btn-success" aria-label="Purchase Tokens">Purchase Tokens</a>
                                 {% else %}
                                     {% if not event.is_full %}
                                     <form action="{% url 'book_event' event.id %}" method="POST">
