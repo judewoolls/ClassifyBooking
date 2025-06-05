@@ -58,6 +58,10 @@ class Token(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     purchased_on = models.DateTimeField(auto_now_add=True)
     used = models.BooleanField(default=False)
+    booking = models.ForeignKey(
+    'booking.Booking', on_delete=models.SET_NULL,
+    null=True, blank=True, related_name='used_token'
+)
 
     def __str__(self):
         return f"Token for {self.user.username} - Used: {self.used}"

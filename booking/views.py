@@ -93,12 +93,13 @@ def book_event(request, event_id):
             messages.error(request, "You don't have any available tokens to book this class.")
             return redirect('event_search', date=event.date_of_event)
 
-        # Mark token as used
-        token.used = True
-        token.save()
-
         # Proceed with booking
         Booking.objects.create(event=event, user=request.user)
+        # Mark token as used
+        token.used = True
+        token.booking = Booking.objects.filter(event=event, user=request.user).first()
+        token.save()
+
         messages.success(request, "Event booked successfully. 1 token has been used.")
         return redirect('event_search', date=event.date_of_event)
 
