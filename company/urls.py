@@ -17,4 +17,5 @@ urlpatterns = [
     path('view_venue/<int:venue_id>/', views.view_venue, name='view_venue'),
     path('edit_venue/<int:venue_id>/', views.edit_venue, name='edit_venue'),
     path('remove_venue/<int:venue_id>/', views.remove_venue, name='remove_venue'),
+    path('purchase_tokens', views.purchase_tokens, name='purchase_tokens'),
 ]

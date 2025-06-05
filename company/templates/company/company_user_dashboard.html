@@ -14,7 +14,7 @@
                 <li><a href="{{ company.website}}" style="text-decoration: underline; color: blue;">Visit company website</a></li>
             </ul>
         </div>
-        <a href="#" class="btn btn-success col-2">Purchase tokens</a>
+        <a href="{% url 'purchase_tokens' %}" class="btn btn-success col-2">Purchase tokens</a>
     </div>
 </div>
 {% endblock content %}

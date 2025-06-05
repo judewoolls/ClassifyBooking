@@ -1,11 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from .models import Coach
+from .models import Coach, Token
 from django.contrib.auth import get_user_model
 
 @login_required
@@ -260,3 +260,28 @@ def edit_venue(request, venue_id):
     except Venue.DoesNotExist:
         messages.error(request, 'Venue not found or does not belong to your company.')
         return redirect('manage_venues')  # Redirect to the venues management view if venue not found
+
+
+# Tokens and purchases
+
+def purchase_tokens(request):
+    if request.method == 'POST':
+        form = PurchaseTokenForm(request.POST, user=request.user)  # Pass the user to the form
+        if form.is_valid():
+            token_count = form.cleaned_data['token_count']
+            company = request.user.profile.company
+            if company:
+                # Create tokens for the user
+                for _ in range(token_count):
+                    Token.objects.create(user=request.user, company=company)
+                request.user.profile.token_count += token_count
+                request.user.profile.save()
+                messages.success(request, f'{token_count} tokens purchased successfully.')
+                return redirect('company_dashboard')
+            else:
+                messages.error(request, 'You do not have a company associated with your profile.')
+    else:
+        form = PurchaseTokenForm(user=request.user)  # Pass the user to the form
+
+    return render(request, 'company/purchase_tokens.html', {'form': form,
+                                                            'company': request.user.profile.company})

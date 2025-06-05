@@ -1,7 +1,7 @@
 from allauth.account.forms import SignupForm
 from django import forms
 from django.contrib.auth.models import User
-from company.models import Company, Coach, Venue
+from company.models import Company, Coach, Venue, Token
 
 class CustomSignupForm(SignupForm):
     company = forms.ModelChoiceField(queryset=Company.objects.all(), empty_label="Select your company", required=False)
@@ -142,3 +142,20 @@ class EditVenueForm(forms.Form):
         venue.postcode = self.cleaned_data['postcode']
         venue.save()
         return venue
+    
+# Tokens and purchases
+
+class PurchaseTokenForm(forms.Form):
+    token_count = forms.IntegerField(min_value=1, label="Number of Tokens", required=True)
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)  # Extract the 'user' argument
+        super().__init__(*args, **kwargs)
+        if user and hasattr(user, 'profile') and user.profile.company:
+            self.company = user.profile.company
+
+    def save(self):
+        token_count = self.cleaned_data['token_count']
+        for _ in range(token_count):
+            Token.objects.create(user=self.company.manager, company=self.company)
+        return token_count
