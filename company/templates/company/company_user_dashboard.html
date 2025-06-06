@@ -15,8 +15,14 @@
             </ul>
         </div>
         <p>You have {{ tokens }} session tokens</p>
-        <a href="{% url 'purchase_tokens' %}" class="btn btn-success col-2">Purchase tokens</a>
-        <a href="{% url 'view_tokens' %}" class="btn btn-info col-2">View Tokens</a>
+        <div class="row d-flex justify-content-around">
+            {% if is_coach %}
+            <p>You are a coach and cannot purchase tokens</p>
+            {% else %}
+            <a href="{% url 'purchase_tokens' %}" class="btn btn-success col-3">Purchase tokens</a>
+            <a href="{% url 'view_tokens' %}" class="btn btn-info col-3">View Tokens</a>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock content %}
