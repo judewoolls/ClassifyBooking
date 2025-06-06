@@ -7,6 +7,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from .models import Coach, Token
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from django.core.exceptions import ObjectDoesNotExist
 
 @login_required
 def company_dashboard(request):
@@ -266,6 +268,16 @@ def edit_venue(request, venue_id):
 
 
 # Tokens and purchases
+def view_tokens(request):
+    # This function should be implemented to view tokens related to the company
+    tokens = Token.objects.filter(user=request.user, company=request.user.profile.company).order_by('-purchased_on')
+    if not tokens:
+        messages.info(request, 'No tokens found for your account.')
+    else:
+        messages.success(request, f'Found {tokens.count()} tokens for your account.')
+    # Render the tokens in a template
+    return render(request, 'company/view_tokens.html', {'company': request.user.profile.company,
+                                                        'tokens': tokens})
 
 def purchase_tokens(request):
     if request.method == 'POST':
@@ -289,14 +301,15 @@ def purchase_tokens(request):
     return render(request, 'company/purchase_tokens.html', {'form': form,
                                                             'company': request.user.profile.company})
 
-def refund_token(request):
+
+def refund_token(request, token_id):
     if request.method == 'POST':
-        token = Token.objects.filter(user=request.user, used=False, refunded=False).first()
-        if token:
+        try:
+            token = Token.objects.get(user=request.user, used=False, refunded=False, id=token_id)
             token.used = True
             token.refunded = True
             token.save()
-            messages.success(request, 'Token marked as refunded successfully.')
-        else:
-            messages.error(request, 'No refundable tokens found.')
+            messages.success(request, 'Token marked as refunded successfully and refund is up for review.')
+        except Token.DoesNotExist:
+            messages.error(request, 'Token not found or is not eligible for refund.')
     return redirect('company_dashboard')

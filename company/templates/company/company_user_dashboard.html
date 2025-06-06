@@ -16,10 +16,7 @@
         </div>
         <p>You have {{ tokens }} session tokens</p>
         <a href="{% url 'purchase_tokens' %}" class="btn btn-success col-2">Purchase tokens</a>
-        <form action="{% url 'refund_token' %}" method="post">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger col-2 mt-2">Refund Token</button>
-        </form>
+        <a href="{% url 'view_tokens' %}" class="btn btn-info col-2">View Tokens</a>
     </div>
 </div>
 {% endblock content %}
