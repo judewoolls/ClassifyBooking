@@ -9,6 +9,7 @@ from .forms import EventForm, MultiEventForm
 from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from company.models import Token
+from booking.utils import update_event_status_if_needed
 
 import logging
 
@@ -53,10 +54,11 @@ def event_search(request, date):
     next_date = current_date + timedelta(days=1)
 
     user_company = request.user.profile.company
-    events = Event.objects.filter(coach__company=user_company, date_of_event=current_date, status=0)
+    events = Event.objects.filter(coach__company=user_company, date_of_event=current_date)
     events = events.order_by('start_time')
     for event in events:
-        event.is_user_booked = event.is_user_booked(request.user)
+        update_event_status_if_needed(event) # check to see if each event has started
+        event.is_user_booked = event.is_user_booked(request.user) # checks if user is booked
 
     is_coach = check_for_coach(request)
     tokens = Token.objects.filter(user=request.user, used=False, company=user_company).count()
@@ -75,6 +77,12 @@ def event_search(request, date):
 
 def book_event(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
+
+    update_event_status_if_needed(event)
+
+    if event.status == 1:  # Past event
+        messages.error(request, "You can't book after the class has started.")
+        return redirect('event_search', date=event.date_of_event)
 
     if request.method == 'POST':
         # Check if event is full
@@ -111,6 +119,13 @@ def book_event(request, event_id):
 def cancel_event(request, event_id):
     user = request.user
     event = get_object_or_404(Event, pk=event_id)
+
+    update_event_status_if_needed(event)
+
+    if event.status == 1:  # Past event
+        messages.error(request, "You can't cancel a booking after the class has started.")
+        return redirect('event_search', date=event.date_of_event)
+
     if request.method == 'POST':
         booking = Booking.objects.filter(event=event, user=user).first()
         if booking:
