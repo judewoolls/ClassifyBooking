@@ -18,4 +18,5 @@ urlpatterns = [
     path('edit_venue/<int:venue_id>/', views.edit_venue, name='edit_venue'),
     path('remove_venue/<int:venue_id>/', views.remove_venue, name='remove_venue'),
     path('purchase_tokens', views.purchase_tokens, name='purchase_tokens'),
+    path('refund_token/', views.refund_token, name='refund_token'),
 ]

@@ -53,7 +53,7 @@ ClassFit | Classes | {{ current_date }}
                         <div class="card-body">
                             <div class="image-container">
                                 <div class="image-flash">
-                                    <p class="author">Author: <strong>{{ event.coach }}</strong></p>
+                                    <p class="author">Coach: <strong>{{ event.coach }}</strong></p>
                                 </div>
                             </div>
                             <a href="{% url 'event_detail' current_date event.id %}" class="event-title" id="event-title-{{ event.id }}" aria-label="Event Details">

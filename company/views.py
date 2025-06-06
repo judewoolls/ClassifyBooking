@@ -288,3 +288,15 @@ def purchase_tokens(request):
 
     return render(request, 'company/purchase_tokens.html', {'form': form,
                                                             'company': request.user.profile.company})
+
+def refund_token(request):
+    if request.method == 'POST':
+        try:
+            token = Token.objects.filter(user=request.user, used=False).first()  # Get the token for the user that is not used
+            token.used = True  # Mark the token as used
+            token.refunded = True  # Mark the token as refunded
+            token.save()  # Save the changes to the token
+            messages.success(request, 'Token refunded successfully & deleted')
+        except Token.DoesNotExist:
+            messages.error(request, 'Token not found or already used.')
+    return redirect('company_dashboard')  # Redirect to the dashboard after refunding
