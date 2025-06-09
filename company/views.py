@@ -8,6 +8,7 @@ from .models import Coach, Token, Venue, RefundRequest
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Case, When, IntegerField
 
 @login_required
 def company_dashboard(request):
@@ -392,7 +393,14 @@ def view_refund_requests(request):
         messages.error(request, 'You do not have a company associated with your profile.')
         return redirect('company_dashboard')
 
-    refund_requests = RefundRequest.objects.filter(token__company=request.user.profile.company).order_by('-created_at', 'status')
+    refund_requests = RefundRequest.objects.filter(token__company=request.user.profile.company).annotate(
+        status_priority=Case(
+            When(status='Pending', then=1),
+            When(status='Approved', then=2),
+            default=3,
+            output_field=IntegerField()
+        )
+    ).order_by('status_priority', '-created_at')
     if not refund_requests:
         messages.info(request, 'No refund requests found for your company.')
     else:
@@ -400,3 +408,36 @@ def view_refund_requests(request):
 
     return render(request, 'company/view_refund_requests.html', {'refund_requests': refund_requests,
                                                                   'company': request.user.profile.company})
+
+@login_required
+def approve_refund_request(request, request_id):
+    try:
+        refund_request = RefundRequest.objects.get(id=request_id, token__company=request.user.profile.company)
+        refund_request.status = 'Approved'
+        refund_request.reviewed_by = request.user
+        refund_request.save()
+        messages.success(request, 'Refund request approved successfully.')
+    except RefundRequest.DoesNotExist:
+        messages.error(request, 'Refund request not found or does not belong to your company.')
+
+    return redirect('view_refund_requests')
+
+@login_required
+def deny_refund_request(request, request_id):
+    try:
+        refund_request = RefundRequest.objects.get(id=request_id, token__company=request.user.profile.company)
+        refund_request.status = 'Denied'
+        refund_request.reviewed_by = request.user
+        try:
+            refund_request.token.used = False  # Mark the token as used
+            refund_request.token.refunded = False  # Mark the token as refunded
+            refund_request.token.save()
+        except Token.DoesNotExist:
+            messages.error(request, 'Token associated with this refund request does not exist.')
+            return redirect('view_refund_requests')
+        refund_request.save()
+        messages.success(request, 'Refund request denied successfully. Token returned to client')
+    except RefundRequest.DoesNotExist:
+        messages.error(request, 'Refund request not found or does not belong to your company.')
+
+    return redirect('view_refund_requests')

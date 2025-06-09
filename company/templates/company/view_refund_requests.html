@@ -9,7 +9,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID</th>
+                <th>Request ID</th>
                 <th>User</th>
                 <th>Purchased On</th>
                 <th>Approve</th>
@@ -19,18 +19,18 @@
         <tbody>
             {% for request in refund_requests %}
             <tr>
-                <td>{{ request.token.id }}</td>
+                <td>{{ request.id }}</td>
                 <td>{{ request.user.username }}</td>
                 <td>{{ request.token.purchased_on }}</td>
                 {% if request.status == "Pending" %}
                 <td>
-                    <form action="#" method="post">
+                    <form action="{% url 'approve_refund_request' request.id %}" method="post">
                         {% csrf_token %}
                         <button class="btn btn-primary" type="submit">Approve</button>
                     </form>
                 </td>
                 <td>
-                    <form action="#" method="post">
+                    <form action="{% url 'deny_refund_request' request.id %}" method="post">
                         {% csrf_token %}
                         <button class="btn btn-danger" type="submit">Deny</button>
                     </form>
