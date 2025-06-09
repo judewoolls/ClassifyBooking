@@ -4,7 +4,7 @@ from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, Re
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Coach, Token, Venue
+from .models import Coach, Token, Venue, RefundRequest
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
@@ -344,6 +344,13 @@ def refund_token(request, token_id):
             token.used = True
             token.refunded = True
             token.save()
+            # Create a refund request
+            refund_request = RefundRequest.objects.create(
+                user=request.user,
+                token=token,
+                status='Pending',
+                reviewed_by=None  # Initially, no one has reviewed it
+            )
             messages.success(request, 'Token marked for refund successfully and refund request has been sent')
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
