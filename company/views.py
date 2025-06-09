@@ -111,7 +111,7 @@ def remove_coach(request):
 
 def view_clients(request):
     # This function should be implemented to view clients related to the company
-    clients = User.objects.filter(profile__company=request.user.profile.company).exclude(id=request.user.id).exclude(id=request.user.profile.company.manager.id).order_by('username')
+    clients = User.objects.filter(profile__company=request.user.profile.company).exclude(id=request.user.id).exclude(id=request.user.profile.company.manager.id).exclude(id__in=Coach.objects.filter(company=request.user.profile.company).values_list('coach__id', flat=True)).order_by('username')
     if not clients:
         messages.info(request, 'No clients found for your company.')
     else:
@@ -138,6 +138,10 @@ def remove_client(request, client_id):
     if request.method == 'POST':
         try:
             client = User.objects.get(id=client_id, profile__company=request.user.profile.company)
+            tokens = Token.objects.filter(user__id=client_id, company=request.user.profile.company, refunded=False, used=False)
+            if tokens.exists():
+                messages.error(request, 'Cannot remove client with active tokens. Please refund or use the tokens first.')
+                return redirect('view_clients')
             if client.profile.company == request.user.profile.company:
                 if Coach.objects.filter(coach=client, company=request.user.profile.company).exists():
                     messages.error(request, 'The selected client is also a coach and cannot be removed as a client.')
@@ -152,7 +156,23 @@ def remove_client(request, client_id):
         except User.DoesNotExist:
             messages.error(request, 'Client not found or does not belong to your company.')
             return redirect('view_clients')
-    
+
+def view_client_tokens(request, client_id):
+    # This function should be implemented to view tokens related to a specific client
+    try:
+        client = User.objects.get(id=client_id, profile__company=request.user.profile.company)
+        tokens = Token.objects.filter(user=client, company=request.user.profile.company).order_by('-purchased_on')
+        if not tokens:
+            messages.info(request, f'No tokens found for client {client.username}.')
+        else:
+            messages.success(request, f'Found {tokens.count()} tokens for client {client.username}.')
+        # Render the tokens in a template
+        return render(request, 'company/view_client_tokens.html', {'company': request.user.profile.company,
+                                                                   'client': client,
+                                                                   'tokens': tokens})
+    except User.DoesNotExist:
+        messages.error(request, 'Client not found or does not belong to your company.')
+        return redirect('view_clients')
 
 def view_bookings(request):
     # This function should be implemented to view bookings related to the company

@@ -20,4 +20,5 @@ urlpatterns = [
     path('purchase_tokens', views.purchase_tokens, name='purchase_tokens'),
     path('refund_token/<int:token_id>', views.refund_token, name='refund_token'),
     path('view_tokens/', views.view_tokens, name='view_tokens'),
+    path('view_client_tokens/<int:client_id>/', views.view_client_tokens, name='view_client_tokens'),
 ]

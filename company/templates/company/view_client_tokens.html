@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Tokens</h2>
+<h3>Tokens for: {{ client.name }}</h3>
+<div class="container">
+    <div class="row">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Company</th>
+                <th>Purchased On</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for token in tokens %}
+            <tr>
+                <td>{{ token.id }}</td>
+                <td>{{ token.company }}</td>
+                <td>{{ token.purchased_on }}</td>
+                {% if token.used == False %}
+                <td>
+                    <form action="{% url 'refund_token' token.id %}" method="post">
+                        {% csrf_token %}
+                        <button class="btn btn-primary" type="submit">Refund</button>
+                    </form>
+                </td>
+                {% elif token.used == True and token.refunded == True %}
+                <td><button class="btn btn-secondary" disabled>Refunded</button></td>
+                {% else %}
+                <td><button class="btn btn-success" disabled>Used</button></td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock content %}
