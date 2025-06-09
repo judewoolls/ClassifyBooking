@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Tokens</h2>
+<h3>Tokens for: {{ client.username }}</h3>
+<div class="container">
+    <div class="row">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Company</th>
+                <th>Purchased On</th>
+                <th>Approve</th>
+                <th>Deny</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for request in refund_requests %}
+            <tr>
+                <td>{{ request.token.id }}</td>
+                <td>{{ request.token.company }}</td>
+                <td>{{ request.token.purchased_on }}</td>
+                {% if request.status == "Pending" %}
+                <td>
+                    <form action="#" method="post">
+                        {% csrf_token %}
+                        <button class="btn btn-primary" type="submit">Approve</button>
+                    </form>
+                </td>
+                <td>
+                    <form action="#" method="post">
+                        {% csrf_token %}
+                        <button class="btn btn-danger" type="submit">Deny</button>
+                    </form>
+                </td>
+                {% else %}
+                <td><button class="btn btn-secondary" disabled>Approved</button></td>
+                <td><button class="btn btn-secondary" disabled>Deny</button></td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endblock content %}

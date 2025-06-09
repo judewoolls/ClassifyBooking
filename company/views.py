@@ -372,3 +372,18 @@ def refund_client_token(request, token_id):
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
     return redirect('view_client_tokens', client_id=token.user.id)
+
+@login_required
+def view_refund_requests(request):
+    if not request.user.is_authenticated or not hasattr(request.user, 'profile') or not request.user.profile.company:
+        messages.error(request, 'You do not have a company associated with your profile.')
+        return redirect('company_dashboard')
+
+    refund_requests = RefundRequest.objects.filter(token__company=request.user.profile.company).order_by('-created_at')
+    if not refund_requests:
+        messages.info(request, 'No refund requests found for your company.')
+    else:
+        messages.success(request, f'Found {refund_requests.count()} refund requests for your company.')
+
+    return render(request, 'company/view_refund_requests.html', {'refund_requests': refund_requests,
+                                                                  'company': request.user.profile.company})

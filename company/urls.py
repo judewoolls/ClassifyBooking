@@ -22,4 +22,5 @@ urlpatterns = [
     path('refund_client_token/<int:token_id>/', views.refund_client_token, name='refund_client_token'),
     path('view_tokens/', views.view_tokens, name='view_tokens'),
     path('view_client_tokens/<int:client_id>/', views.view_client_tokens, name='view_client_tokens'),
+    path('view_refund_requests', views.view_refund_requests, name="view_refund_requests"),
 ]
