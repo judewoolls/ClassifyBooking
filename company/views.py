@@ -368,10 +368,23 @@ def refund_client_token(request, token_id):
             token.used = True
             token.refunded = True
             token.save()
-            messages.success(request, 'Token marked as refunded successfully and refund is being sent.')
+            refund_request = RefundRequest.objects.filter(token=token, user=token.user, status='Pending').first()
+            if refund_request:
+                refund_request.status = 'Approved'
+                refund_request.reviewed_by = request.user
+                refund_request.save()
+                messages.success(request, 'Token refund request approved successfully.')
+            else:
+                refund_request = RefundRequest.objects.create(
+                    user=token.user,
+                    token=token,
+                    status='Approved',
+                    reviewed_by=request.user
+                )
+                messages.success(request, 'Token marked as refunded successfully and refund is being sent.')
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
-    return redirect('view_client_tokens', client_id=token.user.id)
+    return redirect('view_clients')
 
 @login_required
 def view_refund_requests(request):
@@ -379,7 +392,7 @@ def view_refund_requests(request):
         messages.error(request, 'You do not have a company associated with your profile.')
         return redirect('company_dashboard')
 
-    refund_requests = RefundRequest.objects.filter(token__company=request.user.profile.company).order_by('-created_at')
+    refund_requests = RefundRequest.objects.filter(token__company=request.user.profile.company).order_by('-created_at', 'status')
     if not refund_requests:
         messages.info(request, 'No refund requests found for your company.')
     else:

@@ -10,7 +10,7 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Company</th>
+                <th>User</th>
                 <th>Purchased On</th>
                 <th>Approve</th>
                 <th>Deny</th>
@@ -20,7 +20,7 @@
             {% for request in refund_requests %}
             <tr>
                 <td>{{ request.token.id }}</td>
-                <td>{{ request.token.company }}</td>
+                <td>{{ request.user.username }}</td>
                 <td>{{ request.token.purchased_on }}</td>
                 {% if request.status == "Pending" %}
                 <td>
@@ -35,9 +35,12 @@
                         <button class="btn btn-danger" type="submit">Deny</button>
                     </form>
                 </td>
-                {% else %}
-                <td><button class="btn btn-secondary" disabled>Approved</button></td>
-                <td><button class="btn btn-secondary" disabled>Deny</button></td>
+                {% elif request.status == "Approved" %}
+                <td><button class="btn btn-success" disabled>Approved</button></td>
+                <td></td>
+                {% elif request.status == "Denied" %}
+                <td></td>
+                <td><button class="btn btn-danger" disabled>Denied</button></td>
                 {% endif %}
             </tr>
             {% endfor %}
