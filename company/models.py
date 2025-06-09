@@ -66,3 +66,27 @@ class Token(models.Model):
 
     def __str__(self):
         return f"Token for {self.user.username} - Used: {self.used}"
+
+class RefundRequest(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Approved', 'Approved'),
+        ('Denied', 'Denied'),
+    ]
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='refund_requests'
+    )
+    token = models.ForeignKey(
+        Token, on_delete=models.CASCADE, related_name='refund_requests'
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='Pending'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_refunds'
+    )
+
+    def __str__(self):
+        return f"RefundRequest for Token {self.token.id} - Status: {self.status}"
