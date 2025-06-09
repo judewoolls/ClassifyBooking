@@ -304,7 +304,14 @@ def edit_venue(request, venue_id):
 @login_required
 def view_tokens(request):
     # This function should be implemented to view tokens related to the company
-    tokens = Token.objects.filter(user=request.user, company=request.user.profile.company).order_by('-purchased_on')
+    tokens = Token.objects.filter(user=request.user, company=request.user.profile.company).annotate(
+        refunded_priority=Case(
+            When(refunded=False, then=1),
+            When(refunded=True, then=2),
+            default=3,
+            output_field=IntegerField()
+        )
+    ).order_by('refunded_priority', '-purchased_on')
     if not tokens:
         messages.info(request, 'No tokens found for your account.')
     else:
