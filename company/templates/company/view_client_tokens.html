@@ -3,7 +3,7 @@
 
 {% block content %}
 <h2>Tokens</h2>
-<h3>Tokens for: {{ client.name }}</h3>
+<h3>Tokens for: {{ client.username }}</h3>
 <div class="container">
     <div class="row">
     <table class="table table-striped">
@@ -23,7 +23,7 @@
                 <td>{{ token.purchased_on }}</td>
                 {% if token.used == False %}
                 <td>
-                    <form action="{% url 'refund_token' token.id %}" method="post">
+                    <form action="{% url 'refund_client_token' token.id %}" method="post">
                         {% csrf_token %}
                         <button class="btn btn-primary" type="submit">Refund</button>
                     </form>

@@ -329,7 +329,23 @@ def refund_token(request, token_id):
             token.used = True
             token.refunded = True
             token.save()
-            messages.success(request, 'Token marked as refunded successfully and refund is up for review.')
+            messages.success(request, 'Token marked as refunded successfully and refund has been sent')
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
     return redirect('company_dashboard')
+
+def refund_client_token(request, token_id):
+    if request.method == 'POST':
+        try:
+            token = Token.objects.get(id=token_id, used=False, refunded=False)
+            token_company = token.company
+            if token_company.manager != request.user:
+                messages.error(request, 'You do not have permission to refund this token.')
+                return redirect('view_client_tokens', client_id=token.user.id)
+            token.used = True
+            token.refunded = True
+            token.save()
+            messages.success(request, 'Token marked as refunded successfully and refund is up for review.')
+        except Token.DoesNotExist:
+            messages.error(request, 'Token not found or is not eligible for refund.')
+    return redirect('view_client_tokens', client_id=token.user.id)

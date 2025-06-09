@@ -18,7 +18,8 @@ urlpatterns = [
     path('edit_venue/<int:venue_id>/', views.edit_venue, name='edit_venue'),
     path('remove_venue/<int:venue_id>/', views.remove_venue, name='remove_venue'),
     path('purchase_tokens', views.purchase_tokens, name='purchase_tokens'),
-    path('refund_token/<int:token_id>', views.refund_token, name='refund_token'),
+    path('refund_token/<int:token_id>/', views.refund_token, name='refund_token'),
+    path('refund_client_token/<int:token_id>/', views.refund_client_token, name='refund_client_token'),
     path('view_tokens/', views.view_tokens, name='view_tokens'),
     path('view_client_tokens/<int:client_id>/', views.view_client_tokens, name='view_client_tokens'),
 ]
