@@ -4,8 +4,7 @@ from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, Re
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required
-from .models import Coach, Token
+from .models import Coach, Token, Venue
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
@@ -51,6 +50,7 @@ def company_dashboard(request):
             'create_form': create_company_form,                                       
             })
     
+@login_required
 def change_company_details(request):
     if request.method == 'POST':
         form = ChangeCompanyDetailsForm(request.POST, instance=request.user.profile.company)
@@ -66,6 +66,7 @@ def change_company_details(request):
     return render(request, 'company/change_company_details.html', {'form': form,
                                                                    'company': request.user.profile.company})
 
+@login_required
 def view_coaches(request):
     # This function should be implemented to view coaches related to the company
     coaches = Coach.objects.filter(company=request.user.profile.company).order_by('coach__username')
@@ -77,6 +78,7 @@ def view_coaches(request):
     return render(request, 'company/view_coaches.html', {'company': request.user.profile.company,
                                                          'coaches': coaches})
 
+@login_required
 def add_coach(request):
     if request.method == 'POST':
         form = AddCoachForm(request.POST, user=request.user)
@@ -92,6 +94,7 @@ def add_coach(request):
     return render(request, 'company/add_coach.html', {'form': form,
                                                       'company': request.user.profile.company})
 
+@login_required
 def remove_coach(request):
     if request.method == 'POST':
         form = RemoveCoachForm(request.POST, user=request.user)
@@ -109,6 +112,7 @@ def remove_coach(request):
     return render(request, 'company/remove_coach.html', {'form': form,
                                                           'company': request.user.profile.company})
 
+@login_required
 def view_clients(request):
     # This function should be implemented to view clients related to the company
     clients = User.objects.filter(profile__company=request.user.profile.company).exclude(id=request.user.id).exclude(id=request.user.profile.company.manager.id).exclude(id__in=Coach.objects.filter(company=request.user.profile.company).values_list('coach__id', flat=True)).order_by('username')
@@ -120,6 +124,7 @@ def view_clients(request):
     return render(request, 'company/view_clients.html', {'company': request.user.profile.company,
                                                          'clients': clients})
 
+@login_required
 def client_details(request, client_id):
     # This function should be implemented to view details of a specific client
     if request.method == 'POST':
@@ -134,6 +139,7 @@ def client_details(request, client_id):
         messages.error(request, 'Invalid request method.')
         return redirect('view_clients')
 
+@login_required
 def remove_client(request, client_id):
     if request.method == 'POST':
         try:
@@ -157,6 +163,7 @@ def remove_client(request, client_id):
             messages.error(request, 'Client not found or does not belong to your company.')
             return redirect('view_clients')
 
+@login_required
 def view_client_tokens(request, client_id):
     # This function should be implemented to view tokens related to a specific client
     try:
@@ -174,6 +181,7 @@ def view_client_tokens(request, client_id):
         messages.error(request, 'Client not found or does not belong to your company.')
         return redirect('view_clients')
 
+@login_required
 def view_bookings(request):
     # This function should be implemented to view bookings related to the company
     bookings = Booking.objects.filter(event__coach__company=request.user.profile.company).order_by('-event__date_of_event')
@@ -185,6 +193,7 @@ def view_bookings(request):
     return render(request, 'company/view_bookings.html', {'company': request.user.profile.company,
                                                           'bookings': bookings})
 
+@login_required
 def delete_booking(request, booking):
     # This function should be implemented to delete a booking
     booking = Booking.objects.get(id=booking)
@@ -195,8 +204,7 @@ def delete_booking(request, booking):
         messages.error(request, 'You do not have permission to delete this booking.')
     return redirect('view_bookings')  # Redirect to the bookings view after deletion
 
-from company.models import Venue
-
+@login_required
 def manage_venues(request):
     try:
         venues = request.user.profile.company.venues.all()
@@ -210,6 +218,7 @@ def manage_venues(request):
     #     messages.error(request, f'An error occurred while fetching venues: {str(e)}')
     #     return redirect('company_dashboard')
     
+@login_required
 def view_venue(request, venue_id):
     try:
         venue = Venue.objects.get(venue_id=venue_id, company=request.user.profile.company)
@@ -219,6 +228,7 @@ def view_venue(request, venue_id):
         messages.error(request, 'Venue not found or does not belong to your company.')
         return redirect('manage_venues')
     
+@login_required
 def add_venue(request):
     if not hasattr(request.user, 'profile') or not request.user.profile.company:
         messages.error(request, 'You do not have a company associated with your profile.')
@@ -240,6 +250,7 @@ def add_venue(request):
     return render(request, 'company/add_venue.html', {'form': form,
                                                       'company': request.user.profile.company})
 
+@login_required
 def remove_venue(request, venue_id):
     try:
         # Fetch the venue for the user's company
@@ -265,6 +276,7 @@ def remove_venue(request, venue_id):
     return redirect('manage_venues')
 
 
+@login_required
 def edit_venue(request, venue_id):
     try:
         # Use venue_id as the primary key and filter by the user's company
@@ -288,6 +300,7 @@ def edit_venue(request, venue_id):
 
 
 # Tokens and purchases
+@login_required
 def view_tokens(request):
     # This function should be implemented to view tokens related to the company
     tokens = Token.objects.filter(user=request.user, company=request.user.profile.company).order_by('-purchased_on')
@@ -299,6 +312,7 @@ def view_tokens(request):
     return render(request, 'company/view_tokens.html', {'company': request.user.profile.company,
                                                         'tokens': tokens})
 
+@login_required
 def purchase_tokens(request):
     if request.method == 'POST':
         form = PurchaseTokenForm(request.POST, user=request.user)  # Pass the user to the form
@@ -322,6 +336,7 @@ def purchase_tokens(request):
                                                             'company': request.user.profile.company})
 
 
+@login_required
 def refund_token(request, token_id):
     if request.method == 'POST':
         try:
@@ -329,11 +344,12 @@ def refund_token(request, token_id):
             token.used = True
             token.refunded = True
             token.save()
-            messages.success(request, 'Token marked as refunded successfully and refund has been sent')
+            messages.success(request, 'Token marked for refund successfully and refund request has been sent')
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
     return redirect('company_dashboard')
 
+@login_required
 def refund_client_token(request, token_id):
     if request.method == 'POST':
         try:
@@ -345,7 +361,7 @@ def refund_client_token(request, token_id):
             token.used = True
             token.refunded = True
             token.save()
-            messages.success(request, 'Token marked as refunded successfully and refund is up for review.')
+            messages.success(request, 'Token marked as refunded successfully and refund is being sent.')
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
     return redirect('view_client_tokens', client_id=token.user.id)
