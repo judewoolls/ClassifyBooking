@@ -22,13 +22,13 @@
             <details>
                 <summary>Company forms</summary>
                 <div class="container" style="display: flex; flex-direction: column; gap: 10px;">
-                    <p class="btn btn-success"><a href="{% url 'change_company_details' %}">Change Company information</a></p>
-                    <p class="btn btn-success"><a href="{% url 'manage_venues' %}">Manage Venues</a></p>
-                    <p class="btn btn-success"><a href="{% url 'view_coaches' %}">View all coaches</a></p>
-                    <p class="btn btn-success"><a href="{% url 'view_bookings' %}">View all bookings</a></p>
-                    <p class="btn btn-success"><a href="{% url 'view_clients' %}">View all clients</a></p>
-                    <p class="btn btn-success">View Transactions</p>
-                    <p class="btn btn-success"><a href="{% url 'view_refund_requests' %}">Manage Refund Requests</a></p>
+                    <a href="{% url 'change_company_details' %}" class="btn btn-success mt-2">Change Company information</a>
+                    <a href="{% url 'manage_venues' %}" class="btn btn-success mt-2">Manage Venues</a>
+                    <a href="{% url 'view_coaches' %}" class="btn btn-success mt-2">View all coaches</a>
+                    <a href="{% url 'view_bookings' %}" class="btn btn-success mt-2">View all bookings</a>
+                    <a href="{% url 'view_clients' %}" class="btn btn-success mt-2">View all clients</a>
+                    <a href="#" class="btn btn-success mt-2">View Transactions</a>
+                    <a href="{% url 'view_refund_requests' %}" class="btn btn-success mt-2">Manage Refund Requests</a>
                 </div>
             </details>
         </div>
