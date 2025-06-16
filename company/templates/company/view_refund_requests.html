@@ -2,50 +2,89 @@
 {% load static %}
 
 {% block content %}
-<h2>Tokens</h2>
-<h3>Tokens for: {{ client.username }}</h3>
+<h2>Refund Requests</h2>
 <div class="container">
     <div class="row">
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Request ID</th>
-                <th>User</th>
-                <th>Purchased On</th>
-                <th>Approve</th>
-                <th>Deny</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for request in refund_requests %}
-            <tr>
-                <td>{{ request.id }}</td>
-                <td>{{ request.user.username }}</td>
-                <td>{{ request.token.purchased_on }}</td>
-                {% if request.status == "Pending" %}
-                <td>
-                    <form action="{% url 'approve_refund_request' request.id %}" method="post">
-                        {% csrf_token %}
-                        <button class="btn btn-primary" type="submit">Approve</button>
-                    </form>
-                </td>
-                <td>
-                    <form action="{% url 'deny_refund_request' request.id %}" method="post">
-                        {% csrf_token %}
-                        <button class="btn btn-danger" type="submit">Deny</button>
-                    </form>
-                </td>
-                {% elif request.status == "Approved" %}
-                <td><button class="btn btn-success" disabled>Approved</button></td>
-                <td></td>
-                {% elif request.status == "Denied" %}
-                <td></td>
-                <td><button class="btn btn-danger" disabled>Denied</button></td>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            {% if user == company.manager %}
+            <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>User</th>
+                    <th>Purchased On</th>
+                    <th>Approve</th>
+                    <th>Deny</th>
+                </tr>
+            </thead>
+            {% elif user == request.user %}
+            <thead>
+                <tr>
+                    <th>Request ID</th>
+                    <th>Company</th>
+                    <th>Date of Request</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            {% else %}
+            <p>You cannot view these refund requests</p>
+            {% endif %}
+            <tbody>
+                {% for request in refund_requests %}
+                {% if user == company.manager %}
+                <tr>
+                    <td>{{ request.id }}</td>
+                    <td>{{ request.user.username }}</td>
+                    <td>{{ request.token.purchased_on }}</td>
+                    {% if request.status == "Pending" %}
+                    <td>
+                        <form action="{% url 'approve_refund_request' request.id %}" method="post">
+                            {% csrf_token %}
+                            <button class="btn btn-primary" type="submit">Approve</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form action="{% url 'deny_refund_request' request.id %}" method="post">
+                            {% csrf_token %}
+                            <button class="btn btn-danger" type="submit">Deny</button>
+                        </form>
+                    </td>
+                    {% elif request.status == "Approved" %}
+                    <td><button class="btn btn-success" disabled>Approved</button></td>
+                    <td></td>
+                    {% elif request.status == "Denied" %}
+                    <td></td>
+                    <td><button class="btn btn-danger" disabled>Denied</button></td>
+                    {% endif %}
+                </tr>
+                {% elif user == request.user %}
+                <tr>
+                    <td>{{ request.id }}</td>
+                    <td>{{ request.token.company.name }}</td>
+                    <td>{{ request.created_at }}</td>
+                    <td>
+                        {% if request.status == "Pending" %}
+                            Pending
+                        {% elif request.status == "Approved" %}
+                            Approved{% if request.reviewed_by %} by {{ request.reviewed_by.username }}{% endif %}
+                        {% elif request.status == "Denied" %}
+                            Denied{% if request.reviewed_by %} by {{ request.reviewed_by.username }}{% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">You do not have permission to view this request.</td>
+                </tr>
                 {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No refund requests found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     </div>
 </div>
 {% endblock content %}
