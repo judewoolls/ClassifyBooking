@@ -396,11 +396,19 @@ def refund_client_token(request, token_id):
 
 @login_required
 def view_refund_requests(request):
-    if not request.user.is_authenticated or not hasattr(request.user, 'profile') or not request.user.profile.company:
+    if not hasattr(request.user, 'profile') or not request.user.profile.company:
         messages.error(request, 'You do not have a company associated with your profile.')
         return redirect('company_dashboard')
 
-    refund_requests = RefundRequest.objects.filter(token__company=request.user.profile.company).annotate(
+    company = request.user.profile.company
+    is_manager = (company.manager == request.user)
+
+    if is_manager:
+        refund_requests = RefundRequest.objects.filter(token__company=company)
+    else:
+        refund_requests = RefundRequest.objects.filter(user=request.user)
+
+    refund_requests = refund_requests.annotate(
         status_priority=Case(
             When(status='Pending', then=1),
             When(status='Approved', then=2),
@@ -408,13 +416,20 @@ def view_refund_requests(request):
             output_field=IntegerField()
         )
     ).order_by('status_priority', '-created_at')
-    if not refund_requests:
-        messages.info(request, 'No refund requests found for your company.')
-    else:
-        messages.success(request, f'Found {refund_requests.count()} refund requests for your company.')
 
-    return render(request, 'company/view_refund_requests.html', {'refund_requests': refund_requests,
-                                                                  'company': request.user.profile.company})
+    if refund_requests.exists():
+        if is_manager:
+            messages.success(request, f'Found {refund_requests.count()} refund requests for your company.')
+        else:
+            messages.success(request, f'Found {refund_requests.count()} refund requests for you.')
+    else:
+        messages.info(request, 'No refund requests found.')
+
+    return render(request, 'company/view_refund_requests.html', {
+        'refund_requests': refund_requests,
+        'company': company
+    })
+
 
 @login_required
 def approve_refund_request(request, request_id):
