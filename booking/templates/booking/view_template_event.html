@@ -17,13 +17,18 @@
                 <p>Start time: {{ template_event.start_time}}</p>
                 <p>End time: {{ template_event.end_time }}</p>
             </div>
+            <div class="card-footer">
+                <a href="{% url 'edit_template_event' template_event.id %}" class="btn btn-secondary">Edit</a>
+                <form action="{% url 'delete_template_event' template_event.id %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
         </div>
-        <div class="card-footer">
-            <a href="{% url 'edit_template_event' template_event.id %}" class="btn btn-secondary">Edit</a>
-            <form action="{% url 'delete_template_event' template_event.id %}" method="post" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger">Delete</button>
-            </form>
+        <div class="container d-flex justify-content-center mt-4">
+            <div class="row col-3">
+                <a href="{% url 'schedule' day_id=template_event.day_of_week.id %}" class="btn btn-info">Back to Schedule</a>
+            </div>
         </div>
     </div>
 </div>
