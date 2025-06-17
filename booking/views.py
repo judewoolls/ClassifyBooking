@@ -354,7 +354,7 @@ def add_template_event(request, day_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'Template event created successfully.')
-            return redirect('schedule', day_id=day.id)  # Replace with your success URL
+            return redirect('schedule', day_id=day.id) 
         else:
             messages.error(request, 'There was a problem with the form. Please try again.')
     else:
@@ -365,3 +365,32 @@ def add_template_event(request, day_id):
         'booking/template_event.html',
         {'is_coach': True, 'form': form, 'day_id': day_id, 'day': day}
     )
+
+@login_required
+def delete_template_event(request, template_id):
+    template = get_object_or_404(TemplateEvent, pk=template_id)
+    day = get_object_or_404(Day, id=template.day_of_week.id)
+    if request.method == 'POST':
+        template.delete()
+        messages.success(request, "Template event deleted successfully")
+        return redirect('schedule', day_id=day.id) 
+    return redirect('schedule', day_id=template.day_of_week.id)
+
+
+@login_required
+def edit_template_event(request, template_id):
+    template = get_object_or_404(TemplateEvent, pk=template_id)
+
+    if request.method == 'POST':
+        form = TemplateEventForm(request.POST, instance=template, user=request.user, day_id=template.day_of_week.id)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Template updated successfully")
+            return redirect('schedule', day_id=template.day_of_week.id) 
+    else:
+        form = TemplateEventForm(instance=template, user=request.user, day_id=template.day_of_week.id)
+
+    return render(request, "booking/edit_template_event.html", {
+        'form': form,
+        'template': template,
+    })

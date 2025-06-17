@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Edit Template Class</h1>
+<div class="container">
+    <div class="row">
+        <form action="{% url 'edit_template_event' template.id %}" method="post" aria-label="Create Template Event Form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary" aria-label="Button to submit a new class event">Save</button>
+        </form>
+    </div>
+</div>
+
+
+{% endblock content%}

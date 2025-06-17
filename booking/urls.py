@@ -8,6 +8,8 @@ urlpatterns = [
     path('add_template_event/<int:day_id>', views.add_template_event, name='add_template_event'),
     path('cancel_event/<int:event_id>/',
          views.cancel_event, name='cancel_event'),
+    path('delete_template_event/<int:template_id>/',
+         views.delete_template_event, name='delete_template_event'),
     path('delete_event/<int:event_id>/', views.delete_event,
          name='delete_event'),
     path('create_event/', views.create_event, name='create_event'),
@@ -16,6 +18,8 @@ urlpatterns = [
     path('duplicate_day_events/<str:date_str>/',
          views.duplicate_event, name='duplicate_day_events'),
     path('edit_event/<int:event_id>/', views.edit_event, name='edit_event'),
+    path('edit_template_event/<int:template_id>/',
+         views.edit_template_event, name='edit_template_event'),
     path('<str:date>/', views.event_search, name='event_search'),
     path('<str:date>/<int:id>/', views.event_detail, name='event_detail'),
 ]
