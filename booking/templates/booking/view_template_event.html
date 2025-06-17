@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{% if is_coach %}
+<h1>Add Template Class for {{ day }}</h1>
+<div class="container">
+    <div class="row">
+        <div class="card">
+            <div class="card-title mt-4">
+                <h5>{{ template_event.event_name }}</h5>
+            </div>
+            <div class="card-body">
+                <p>Description: {{ template_event.description }}</p>
+                <p>Coach: {{ template_event.coach }}</p>
+                <p>Day of the Week: {{ template_event.day_of_week }}</p>
+                <p>Venue: {{ template_event.venue }}</p>
+                <p>Start time: {{ template_event.start_time}}</p>
+                <p>End time: {{ template_event.end_time }}</p>
+            </div>
+        </div>
+        <div class="card-footer">
+            <a href="{% url 'edit_template_event' template_event.id %}" class="btn btn-secondary">Edit</a>
+            <form action="{% url 'delete_template_event' template_event.id %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% else %}
+{% if user.is_authenticated %}
+<h2>Not a coach</h2>
+<p>You do not have permission to add template events.</p>
+{% else %}
+<h2>Not logged in</h2>
+<p>Please <a href="{% url 'login' %}">log in</a> to view your schedule.</p>
+{% endif %}
+{% endif %}
+
+{% if user.is_authenticated and is_coach %}
+
+{% endif %}
+
+
+{% endblock content%}

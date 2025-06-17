@@ -6,6 +6,8 @@ urlpatterns = [
     path('coach_dashboard/', views.coach_dashboard, name='coach_dashboard'),
     path('schedule/<int:day_id>/', views.schedule, name='schedule'),
     path('add_template_event/<int:day_id>', views.add_template_event, name='add_template_event'),
+    path('view_template_event/<int:template_id>/',
+         views.view_template_event, name='view_template_event'),
     path('cancel_event/<int:event_id>/',
          views.cancel_event, name='cancel_event'),
     path('delete_template_event/<int:template_id>/',

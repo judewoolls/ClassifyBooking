@@ -17,6 +17,12 @@ ClassFit | Classes | {{ current_date }}
             <button class="btn btn-secondary ms-2" onclick="navigateTo('{{ next_date }}')" aria-label="Next Date">></button>
         </div>
         {% if is_coach %}
+        <div id="manage-schedule-button" class="mt-2">
+            <form action="{% url 'coach_dashboard' %}" method="get">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success" aria-label="Add Event">Manage Automated Schedule</button>
+            </form>
+        </div>
         <div id="add-event-button">
             <form action="{% url 'create_event' %}" method="get">
                 {% csrf_token %}

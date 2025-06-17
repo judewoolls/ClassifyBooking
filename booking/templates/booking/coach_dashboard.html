@@ -2,10 +2,11 @@
 {% load static %}
 
 {% block content %}
-<h2>Coach Dashboard</h2>
-<h3>Your company {{ company.name }}</h3>
+<h2>Coach Dashboard for {{ company.name }}</h2>
 <p>Welcome, {{ user.username }}!</p>
-<p>Here you can manage and view your schedule.</p>
+<p>Here you can manage and view your schedule for each day. Once set to active your scheduled templates will be used to create classes/events that users can book onto.</p>
+<p>These events are then added automatically 30 days before that date</p>
+
 <div class="container">
     <div class="row d-flex flex-row justify-content-between"></div>
         <a href="{% url 'schedule' 1 %}" class="btn btn-success">Monday</a>

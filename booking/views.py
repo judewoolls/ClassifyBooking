@@ -394,3 +394,19 @@ def edit_template_event(request, template_id):
         'form': form,
         'template': template,
     })
+
+
+
+@login_required
+def view_template_event(request, template_id):
+    template_event = get_object_or_404(TemplateEvent, id=template_id)
+
+    # Optional: Check if user is the coach who created it
+    if check_for_coach(request) == False:
+        messages.error(request, "You are not authorized to view this template event.")
+        return redirect('schedule', day_id=template_event.day_of_week.id)
+
+    return render(request, 'booking/view_template_event.html', {
+        'template_event': template_event,
+        'is_coach': True,
+    })

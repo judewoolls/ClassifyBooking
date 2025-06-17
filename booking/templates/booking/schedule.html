@@ -2,16 +2,15 @@
 {% load static %}
 
 {% block content %}
-<h2>Coach Dashboard</h2>
-<h3>Your company {{ user.profile.company }}</h3>
+<h3>Schedule for {{ user.profile.company }}</h3>
 <p>Welcome, {{ user.username }}!</p>
 <p>This is your schedule for {{ day }}</p>
-<div class="container">
-    <div class="row">
+<div class="container d-flex justify-content-center">
+    <div class="row col-3">
         <a href="{% url 'add_template_event' day.id %}" class="btn btn-success">Add a Template Event</a>
     </div>
 </div>
-<div class="container">
+<div class="container mt-4">
     <div class="row">
         {% for event in template_events %}
         <div class="col-md-4 mb-3">
@@ -21,7 +20,7 @@
                     <p class="card-text">Time: {{ event.start_time }} - {{ event.end_time }}</p>
                     <p class="card-text">Location: {{ event.venue.name }}</p>
                     <p class="card-text">Description: {{ event.description }}</p>
-                    <a href="#" class="btn btn-primary">View Details</a>
+                    <a href="{% url 'view_template_event' event.id %}" class="btn btn-primary">View Details</a>
                     <a href="{% url 'edit_template_event' event.id %}" class="btn btn-secondary">Edit</a>
                     <form action="{% url 'delete_template_event' event.id %}" method="post" style="display:inline;">
                         {% csrf_token %}
@@ -34,6 +33,11 @@
         <p>no events scheduled</p>
         {% endfor %}
     </div>
+    </div>
+    <div class="container d-flex justify-content-center">
+        <div class="row mt-4 col-3">
+            <a href="{% url 'coach_dashboard' %}" class="btn btn-info">Back to Dashboard</a>
+        </div>
     </div>
 </div>
 {% endblock content %}
