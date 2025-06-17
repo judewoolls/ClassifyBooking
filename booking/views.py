@@ -345,12 +345,21 @@ def schedule(request, day_id):
         {'template_events': template_events, 'is_coach': True, 'day': day}
     )
 
-def add_template_event(request, day_id):
-    if request.method == 'POST':
-        return
 
+def add_template_event(request, day_id):
     day = get_object_or_404(Day, id=day_id)
-    form = TemplateEventForm(user=request.user, day_id=day.id)
+
+    if request.method == 'POST':
+        form = TemplateEventForm(request.POST, user=request.user, day_id=day.id)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Template event created successfully.')
+            return redirect('schedule', day_id=day.id)  # Replace with your success URL
+        else:
+            messages.error(request, 'There was a problem with the form. Please try again.')
+    else:
+        form = TemplateEventForm(user=request.user, day_id=day.id)
+
     return render(
         request,
         'booking/template_event.html',
