@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
   <h2>Duplicate Schedule from {{ source_day }}</h2>
+  <p>Please note that the templates on the day you duplicate to will be deleted and replaced with rhe templates you are duplicating</p>
 
-  <form method="post">
+  <form method="post" class="mb-4">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">Duplicate Schedule</button>
+    <button type="submit" class="btn btn-success">Duplicate Schedule</button>
   </form>
-
-  <a href="{% url 'schedule' day_id=source_day.id %}">Cancel</a>
+  <div class="container d-flex justify-content-center mt-4">
+    <div class="row col-1">
+        <a href="{% url 'schedule' day_id=source_day.id %}" class="btn btn-danger">Cancel</a>
+    </div>
+  </div>
 {% endblock %}
