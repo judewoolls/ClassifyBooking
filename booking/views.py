@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
-from .models import Event, Booking, Coach
+from .models import Event, Booking, Coach, TemplateEvent, ExcludedDate, Day
 from django.views import generic
 from datetime import timedelta, datetime
 from django.contrib import messages
@@ -315,4 +315,32 @@ def edit_event(request, event_id):
          'form': form}
     )
 
+@login_required
+def coach_dashboard(request):
+    if not check_for_coach(request):
+        messages.error(request, "You are not authorized to view this page")
+        return redirect('event_search', date=date.today())
 
+    coach = get_object_or_404(Coach, coach=request.user)
+
+    return render(
+        request,
+        "booking/coach_dashboard.html",
+        {'is_coach': True}
+    )
+
+def schedule(request, day_id):
+    if not check_for_coach(request):
+        messages.error(request, "You are not authorized to view this page")
+        return redirect('event_search', date=date.today())
+
+    day = get_object_or_404(Day, id=day_id)
+    # Ensure the user is a coach
+    coach = get_object_or_404(Coach, coach=request.user)
+    template_events = TemplateEvent.objects.filter(coach=coach, day_of_week=day).order_by('start_time')
+
+    return render(
+        request,
+        "booking/schedule.html",
+        {'template_events': template_events, 'is_coach': True, 'day': day}
+    )

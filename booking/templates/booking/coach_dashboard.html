@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Coach Dashboard</h2>
+<h3>Your company {{ company.name }}</h3>
+<p>Welcome, {{ user.username }}!</p>
+<p>Here you can manage and view your schedule.</p>
+<div class="container">
+    <div class="row d-flex flex-row justify-content-between"></div>
+        <a href="{% url 'schedule' 1 %}" class="btn btn-success">Monday</a>
+        <a href="{% url 'schedule' 2 %}" class="btn btn-success">Tuesday</a>
+        <a href="{% url 'schedule' 3 %}" class="btn btn-success">Wednesday</a>
+        <a href="{% url 'schedule' 4 %}" class="btn btn-success">Thursday</a>
+        <a href="{% url 'schedule' 5 %}" class="btn btn-success">Friday</a>
+        <a href="{% url 'schedule' 6 %}" class="btn btn-success">Saturday</a>
+        <a href="{% url 'schedule' 7 %}" class="btn btn-success">Sunday</a>
+    </div>
+</div>
+{% endblock content %}

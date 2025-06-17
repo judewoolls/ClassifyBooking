@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h2>Coach Dashboard</h2>
+<h3>Your company {{ company.name }}</h3>
+<p>Welcome, {{ user.username }}!</p>
+<p>This is your schedule for {{ day }}</p>
+<div class="container">
+    <div class="row">
+        {% for event in template_events %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ event.title }}</h5>
+                    <p class="card-text">Time: {{ event.start_time }} - {{ event.end_time }}</p>
+                    <p class="card-text">Location: {{ event.location }}</p>
+                    <p class="card-text">Description: {{ event.description }}</p>
+                    <a href="{% url 'booking:event_detail' event.id %}" class="btn btn-primary">View Details</a>
+                    <a href="{% url 'booking:event_edit' event.id %}" class="btn btn-secondary">Edit</a>
+                    <form action="{% url 'booking:event_delete' event.id %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div> 
+        {% empty %}
+        <p>no events scheduled</p>
+        {% endfor %}
+    </div>
+    </div>
+</div>
+{% endblock content %}

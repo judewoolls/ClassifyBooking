@@ -3,6 +3,8 @@ from django.urls import path
 
 urlpatterns = [
     path('book_event/<int:event_id>/', views.book_event, name='book_event'),
+    path('coach_dashboard/', views.coach_dashboard, name='coach_dashboard'),
+    path('schedule/<int:day_id>/', views.schedule, name='schedule'),
     path('cancel_event/<int:event_id>/',
          views.cancel_event, name='cancel_event'),
     path('delete_event/<int:event_id>/', views.delete_event,

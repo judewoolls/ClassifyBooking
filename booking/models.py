@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from company.models import Coach
+from company.models import Coach, Venue
 
 STATUS = ((0, 'Active'), (1, 'Expired'))
 EVENT_STATUS = ((0, 'Future'), (1, 'Past'))
@@ -56,3 +56,36 @@ class Booking(models.Model):
 
     class Meta:
         ordering = ["status"]
+
+class Day(models.Model):
+    id = models.AutoField(primary_key=True, unique=True)
+    day = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.day
+
+    class Meta:
+        ordering = ["id"]
+
+
+class TemplateEvent(models.Model):
+    coach = models.ForeignKey(Coach, on_delete=models.CASCADE, related_name="template_events")
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="template_venue")
+    event_name = models.CharField(max_length=200)
+    description = models.TextField()
+    day_of_week = models.ForeignKey(Day, on_delete=models.CASCADE)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    capacity = models.PositiveIntegerField()
+    active = models.BooleanField(default=True)  # To allow pausing automation
+
+    def __str__(self):
+        return f"{self.event_name} on {self.day_of_week}"
+
+class ExcludedDate(models.Model):
+    coach = models.ForeignKey(Coach, on_delete=models.CASCADE)
+    date = models.DateField()
+
+    def __str__(self):
+        return f"Excluded: {self.date} by {self.coach}"
+
