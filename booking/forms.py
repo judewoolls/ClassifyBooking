@@ -174,3 +174,13 @@ class TemplateEventForm(forms.ModelForm):
         else:
             self.fields['venue'].queryset = Venue.objects.none()
             self.fields['coach'].queryset = Coach.objects.none()
+
+
+class DuplicateTemplateDayForm(forms.Form):
+    target_day = forms.ModelChoiceField(queryset=Day.objects.none(), label="Select Target Day")
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user:
+            # Only show days that belong to the coach
+            self.fields['target_day'].queryset = Day.objects.all()

@@ -5,7 +5,7 @@ from django.views import generic
 from datetime import timedelta, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .forms import EventForm, MultiEventForm, TemplateEventForm
+from .forms import EventForm, MultiEventForm, TemplateEventForm, DuplicateTemplateDayForm
 from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from company.models import Token
@@ -410,3 +410,55 @@ def view_template_event(request, template_id):
         'template_event': template_event,
         'is_coach': True,
     })
+
+
+@login_required
+def duplicate_template_schedule(request, source_day_id):
+    source_day = get_object_or_404(Day, id=source_day_id)
+
+    if check_for_coach(request) == False:
+        # If the user is not a coach, redirect with an error message
+        messages.error(request, "You are not authorized to duplicate this schedule.")
+        return redirect('schedule', day_id=source_day.id)
+
+    if request.method == 'POST':
+        form = DuplicateTemplateDayForm(request.POST, user=request.user)
+        if form.is_valid():
+            target_day = form.cleaned_data['target_day']
+
+            # Clear existing template events for target day
+            TemplateEvent.objects.filter(day_of_week=target_day).delete()
+
+            # Duplicate template events
+            source_events = TemplateEvent.objects.filter(day_of_week=source_day)
+            new_events = [
+                TemplateEvent(
+                    coach=event.coach,
+                    day_of_week=target_day,
+                    event_name=event.event_name,
+                    description=event.description,
+                    venue=event.venue,
+                    start_time=event.start_time,
+                    end_time=event.end_time,
+                    capacity=event.capacity,
+                )
+                for event in source_events
+            ]
+            TemplateEvent.objects.bulk_create(new_events)
+
+            messages.success(
+                request,
+                f"Successfully duplicated {len(new_events)} template event(s) from {source_day} to {target_day}."
+            )
+            return redirect('schedule', day_id=target_day.id)
+    else:
+        form = DuplicateTemplateDayForm(user=request.user)
+
+    return render(
+        request,
+        'booking/duplicate_template_schedule.html',
+        {
+            'form': form,
+            'source_day': source_day,
+        }
+    )

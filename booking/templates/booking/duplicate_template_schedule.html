@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Duplicate Schedule from {{ source_day }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Duplicate Schedule</button>
+  </form>
+
+  <a href="{% url 'schedule' day_id=source_day.id %}">Cancel</a>
+{% endblock %}

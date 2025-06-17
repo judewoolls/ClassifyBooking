@@ -5,9 +5,12 @@
 <h3>Schedule for {{ user.profile.company }}</h3>
 <p>Welcome, {{ user.username }}!</p>
 <p>This is your schedule for {{ day }}</p>
-<div class="container d-flex justify-content-center">
+<div class="container d-flex justify-content-around">
     <div class="row col-3">
         <a href="{% url 'add_template_event' day.id %}" class="btn btn-success">Add a Template Event</a>
+    </div>
+    <div class="row col-3">
+        <a href="{% url 'duplicate_template_schedule' day.id %}" class="btn btn-primary">Duplicate Day</a>
     </div>
 </div>
 <div class="container mt-4">
