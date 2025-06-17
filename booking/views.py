@@ -5,7 +5,7 @@ from django.views import generic
 from datetime import timedelta, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .forms import EventForm, MultiEventForm
+from .forms import EventForm, MultiEventForm, TemplateEventForm
 from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from company.models import Token
@@ -343,4 +343,16 @@ def schedule(request, day_id):
         request,
         "booking/schedule.html",
         {'template_events': template_events, 'is_coach': True, 'day': day}
+    )
+
+def add_template_event(request, day_id):
+    if request.method == 'POST':
+        return
+
+    day = get_object_or_404(Day, id=day_id)
+    form = TemplateEventForm(user=request.user, day_id=day.id)
+    return render(
+        request,
+        'booking/template_event.html',
+        {'is_coach': True, 'form': form, 'day_id': day_id, 'day': day}
     )

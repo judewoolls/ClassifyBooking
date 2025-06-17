@@ -1,5 +1,5 @@
 from django import forms
-from .models import Event
+from .models import Event, TemplateEvent, Day
 from django.forms import DateField
 from django.forms.widgets import DateInput, CheckboxSelectMultiple
 from datetime import date, timedelta
@@ -125,3 +125,52 @@ class MultiEventForm(forms.ModelForm):
             except Coach.DoesNotExist:
                 # Handle the case where the user is not a coach.
                 self.fields['venue'].queryset = Venue.objects.none()
+
+
+class TemplateEventForm(forms.ModelForm):
+    venue = forms.ModelChoiceField(
+        queryset=Venue.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label="Venue",
+        required=True
+    )
+
+    class Meta:
+        model = TemplateEvent
+        fields = ['coach', 'event_name', 'description', 'day_of_week',
+                  'venue', 'capacity', 'start_time', 'end_time']
+        widgets = {
+            'coach': forms.Select(attrs={'class': 'form-control'}),
+            'event_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control'}),
+            'day_of_week': forms.Select(attrs={'class': 'form-control'}),
+            'venue': forms.Select(attrs={'class': 'form-control'}),
+            'capacity': forms.NumberInput(attrs={'class': 'form-control',
+                                                 'min': 1}),
+            'start_time': forms.TimeInput(attrs={'class': 'form-control'}),
+            'end_time': forms.TimeInput(attrs={'class': 'form-control'}),
+        }
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        day_id = kwargs.pop('day_id', None)
+        super().__init__(*args, **kwargs)
+
+        if user:
+            try:
+                coach = Coach.objects.get(coach=user)
+                self.fields['coach'].queryset = Coach.objects.filter(id=coach.id)
+                self.fields['coach'].initial = coach.id
+
+                self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
+                self.fields['venue'].initial = Venue.objects.filter(company=coach.company).first()
+                self.fields['coach'].queryset = Coach.objects.filter(company=coach.company)
+
+                self.fields['day_of_week'].queryset = Day.objects.filter(id=day_id)
+                self.fields['day_of_week'].initial = day_id
+
+            except Coach.DoesNotExist:
+                self.fields['venue'].queryset = Venue.objects.none()
+                self.fields['coach'].queryset = Coach.objects.none()
+        else:
+            self.fields['venue'].queryset = Venue.objects.none()
+            self.fields['coach'].queryset = Coach.objects.none()
