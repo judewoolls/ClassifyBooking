@@ -14,6 +14,8 @@ urlpatterns = [
          views.cancel_event, name='cancel_event'),
     path('delete_template_event/<int:template_id>/',
          views.delete_template_event, name='delete_template_event'),
+    path('delete_future_events/', views.delete_future_events,
+         name='delete_future_events'),
     path('delete_event/<int:event_id>/', views.delete_event,
          name='delete_event'),
     path('create_event/', views.create_event, name='create_event'),

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Edit Class</h1>
+<div class="container">
+    <div class="row">
+        <h2>Delete Future Events</h2>
+        <p>This will only delete events that haven't already begun.</p>
+        <p>Please note these events are real events and users who have booked onto these events have tokens returned to them</p>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Delete Events</button>
+        </form>
+    </div>
+</div>
+{% endblock content %}

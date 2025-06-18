@@ -23,7 +23,8 @@
         <form action="{% url 'generate_schedule' %}" method="post">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Generate Schedule (Next 30 Days)</button>
-        </form>        
+        </form>
+        <a href="{% url 'delete_future_events' %}">Delete Real Events</a>   
     </div>
 </div>
 {% endblock content %}

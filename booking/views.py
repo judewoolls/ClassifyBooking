@@ -5,7 +5,7 @@ from django.views import generic
 from datetime import timedelta, datetime
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .forms import EventForm, MultiEventForm, TemplateEventForm, DuplicateTemplateDayForm
+from .forms import EventForm, MultiEventForm, TemplateEventForm, DuplicateTemplateDayForm, BulkDeleteEventsForm
 from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from company.models import Token
@@ -475,3 +475,23 @@ def generate_schedule_view(request):
     messages.success(request, f"{created} events created for the next 30 days.")
 
     return redirect('coach_dashboard')  # or wherever you want to go after
+
+@login_required
+def delete_future_events(request):
+    if request.method == "POST":
+        form = BulkDeleteEventsForm(request.POST)
+        if form.is_valid():
+            start = form.cleaned_data["start_date"]
+            end = form.cleaned_data["end_date"]
+
+            deleted, _ = Event.objects.filter(
+                date_of_event__range=(start, end),
+                status=0  # Future events only
+            ).delete()
+
+            messages.success(request, f"{deleted} future event(s) deleted.")
+            return redirect("coach_dashboard")  # Adjust as needed
+    else:
+        form = BulkDeleteEventsForm()
+
+    return render(request, "booking/delete_events.html", {"form": form})
