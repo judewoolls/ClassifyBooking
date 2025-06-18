@@ -71,10 +71,15 @@ ClassFit | Classes | {{ current_date }}
                             <p class="card-text h6 event-timings">{{ event.start_time }} - {{ event.end_time }}</p>
                             <p>{{event.number_of_bookings}}/{{event.capacity}}</p>
                             {% if is_coach %}
+                                {% if event.status == 0 %}
                                 <form action="{% url 'delete_event' event.id %}" method="POST">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-danger" aria-label="Delete Event">Delete</button>
                                 </form>
+                                {% else %}
+                                <p class="text-danger">This event has already started and cannot be deleted</p>
+                                <button class="btn btn-danger disabled">Delete</button>
+                                {% endif %}
                             {% else %}
                                 {% if event.is_user_booked %}
                                     {% if event.status == 1 %}
