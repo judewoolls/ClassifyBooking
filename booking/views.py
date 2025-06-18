@@ -501,10 +501,13 @@ def delete_future_events(request):
 def switch_auto_update_status(request):
     if request.user.profile.company.manager == request.user:
         try:
-            if request.user.profile.company.auto_updates == False:
-                request.user.profile.company.auto_updates = True
+            company = request.user.profile.company
+            if company.auto_updates == False:
+                company.auto_updates = True
             else:
-                request.user.profile.company.auto_updates = False
+                company.auto_updates = False
+            company.save()  # Save the changes to the database
+            messages.success(request, "Auto-update status toggled successfully.")
             return redirect('coach_dashboard')
         except Exception as e:
             messages.error(request, "An error occurred while toggling auto updates.")

@@ -5,7 +5,6 @@
 <h2>Coach Dashboard for {{ company.name }}</h2>
 <p>Welcome, {{ user.username }}!</p>
 <p>Here you can manage and view your schedule for each day. Once set to active your scheduled templates will be used to create classes/events that users can book onto.</p>
-<p>These events are then added automatically 30 days before that date.</p>
 
 <div class="container">
     <div class="row d-flex flex-row justify-content-between"></div>
@@ -20,19 +19,21 @@
 </div>
 <div class="container d-flex justify-content-center mt-4">
     <div class="row mt-1 mb-4">
-        <form action="{% url 'generate_schedule' %}" method="post">
+        <p>Click here to add your schedule to the next 30 days. Please note this may cause overlaps and it is best to delete any events that will cause conflicts first</p>
+        <form action="{% url 'generate_schedule' %}" method="post" class="mb-4">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Generate Schedule (Next 30 Days)</button>
         </form>
+        <p class="mt-2">Auto updates will automatically apply your scheduled events to keep you up to date up to 30 days ahead starting by applying your schedule for the relevant day each day to the day that is 30 days ahead. Note this won't include the next 30 days (See above to add your schedule to the next 30 days).</p>
         <div class="row mt-1 mb-4">
             {% if company.auto_updates == False %}
-            <p>Auto updates are currently disabled.</p>
+            <h4 class="text-danger">Auto updates are currently disabled.</h4>
             <form action="{% url 'switch_auto_update_status' %}" method="post">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success">Enable Auto Updates</button>
             </form>
             {% else %}
-            <p>Auto updates are currently enabled.</p>
+            <h4 class="text-success">Auto updates are currently enabled.</h4>
             <form action="{% url 'switch_auto_update_status' %}" method="post">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger">Disable Auto Updates</button>
@@ -40,6 +41,7 @@
         </div>
         <div class="row mt-4">
             <div>
+                <p>Used to delete all events between dates you provide</p>
                 <a href="{% url 'delete_future_events' %}" class="btn btn-danger">Delete Real Events</a>  
             </div>
         </div>
