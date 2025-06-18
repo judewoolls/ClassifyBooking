@@ -19,12 +19,16 @@
     </div>
 </div>
 <div class="container d-flex justify-content-center mt-4">
-    <div class="row">
+    <div class="row mt-1 mb-4">
         <form action="{% url 'generate_schedule' %}" method="post">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Generate Schedule (Next 30 Days)</button>
         </form>
-        <a href="{% url 'delete_future_events' %}">Delete Real Events</a>   
+        <div class="row mt-4">
+            <div>
+                <a href="{% url 'delete_future_events' %}" class="btn btn-danger">Delete Real Events</a>  
+            </div>
+        </div>
     </div>
 </div>
 {% endblock content %}
