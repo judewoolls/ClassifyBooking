@@ -2,6 +2,7 @@
 {% block content %}
   <h2>Duplicate Schedule from {{ source_day }}</h2>
   <p>Please note that the templates on the day you duplicate to will be deleted and replaced with rhe templates you are duplicating</p>
+  <p>Note this does not delete any real events</p>
 
   <form method="post" class="mb-4">
     {% csrf_token %}
