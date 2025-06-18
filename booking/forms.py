@@ -184,3 +184,7 @@ class DuplicateTemplateDayForm(forms.Form):
         if user:
             # Only show days that belong to the coach
             self.fields['target_day'].queryset = Day.objects.all()
+
+class BulkDeleteEventsForm(forms.Form):
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))

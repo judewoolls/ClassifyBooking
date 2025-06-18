@@ -9,6 +9,7 @@ urlpatterns = [
     path('view_template_event/<int:template_id>/',
          views.view_template_event, name='view_template_event'),
     path('template/duplicate_schedule/<int:source_day_id>/', views.duplicate_template_schedule, name='duplicate_template_schedule'),
+    path("generate-schedule/", views.generate_schedule_view, name="generate_schedule"),
     path('cancel_event/<int:event_id>/',
          views.cancel_event, name='cancel_event'),
     path('delete_template_event/<int:template_id>/',

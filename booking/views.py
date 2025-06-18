@@ -9,7 +9,7 @@ from .forms import EventForm, MultiEventForm, TemplateEventForm, DuplicateTempla
 from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from company.models import Token
-from booking.utils import update_event_status_if_needed
+from booking.utils import update_event_status_if_needed, generate_schedule_for_next_30_days
 
 import logging
 
@@ -462,3 +462,16 @@ def duplicate_template_schedule(request, source_day_id):
             'source_day': source_day,
         }
     )
+
+@login_required
+def generate_schedule_view(request):
+    if not check_for_coach(request):
+        messages.error(request, "You are not authorized to generate a schedule.")
+        return redirect('event_search', date=date.today())
+    # Ensure the user is a coach
+    company = request.user.profile.company
+
+    created = generate_schedule_for_next_30_days(company)
+    messages.success(request, f"{created} events created for the next 30 days.")
+
+    return redirect('coach_dashboard')  # or wherever you want to go after
