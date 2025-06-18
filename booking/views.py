@@ -322,11 +322,12 @@ def coach_dashboard(request):
         return redirect('event_search', date=date.today())
 
     coach = get_object_or_404(Coach, coach=request.user)
+    company = coach.company
 
     return render(
         request,
         "booking/coach_dashboard.html",
-        {'is_coach': True}
+        {'is_coach': True, 'company': company}
     )
 
 def schedule(request, day_id):
@@ -495,3 +496,19 @@ def delete_future_events(request):
         form = BulkDeleteEventsForm()
 
     return render(request, "booking/delete_events.html", {"form": form})
+
+@login_required
+def switch_auto_update_status(request):
+    if request.user.profile.company.manager == request.user:
+        try:
+            if request.user.profile.company.auto_updates == False:
+                request.user.profile.company.auto_updates = True
+            else:
+                request.user.profile.company.auto_updates = False
+            return redirect('coach_dashboard')
+        except Exception as e:
+            messages.error(request, "An error occurred while toggling auto updates.")
+            return redirect('coach_dashboard')
+    else:
+        messages.error(request, "You are not authorized to change this setting.")
+        return redirect('event_search', date=date.today())

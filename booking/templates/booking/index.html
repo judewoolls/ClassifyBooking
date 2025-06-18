@@ -18,28 +18,19 @@ ClassFit | Classes | {{ current_date }}
         </div>
         {% if is_coach %}
         <div id="manage-schedule-button" class="mt-2">
-            <form action="{% url 'coach_dashboard' %}" method="get">
+            <form action="{% url 'coach_dashboard' %}" method="post">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success" aria-label="Add Event">Manage Automated Schedule</button>
             </form>
         </div>
         <div id="add-event-button">
-            <form action="{% url 'create_event' %}" method="get">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-info" aria-label="Add Event">Add Event</button>
-            </form>
+            <a href="{% url 'create_event' %}" class="btn btn-info">Add Event</a>
         </div>
         <div id="add-multi-event-button" class="mt-2">
-            <form action="{% url 'create_multi_event' %}" method="get">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-secondary" aria-label="Add Multi Event">Add Multi Event</button>
-            </form>
+            <a href="{% url 'create_multi_event' %}" class="btn btn-secondary">Create Multi Events</a>
         </div>
         <div id="copy-day-button" class="mt-2">
-            <form action="{% url 'duplicate_day_events' current_date %}" method="get">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-primary" aria-label="Add Multi Event">Duplicate Schedule</button>
-            </form>
+            <a href="{% url 'duplicate_day_events' current_date %}" class="btn btn-primary">Duplicate Todays events</a>
         </div>
         {% else %}
         <div class="col-12 mt-3">

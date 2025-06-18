@@ -24,6 +24,20 @@
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Generate Schedule (Next 30 Days)</button>
         </form>
+        <div class="row mt-1 mb-4">
+            {% if company.auto_updates == False %}
+            <p>Auto updates are currently disabled.</p>
+            <form action="{% url 'switch_auto_update_status' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">Enable Auto Updates</button>
+            </form>
+            {% else %}
+            <p>Auto updates are currently enabled.</p>
+            <form action="{% url 'switch_auto_update_status' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Disable Auto Updates</button>
+            {% endif %}
+        </div>
         <div class="row mt-4">
             <div>
                 <a href="{% url 'delete_future_events' %}" class="btn btn-danger">Delete Real Events</a>  

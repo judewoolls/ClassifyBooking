@@ -16,6 +16,8 @@ urlpatterns = [
          views.delete_template_event, name='delete_template_event'),
     path('delete_future_events/', views.delete_future_events,
          name='delete_future_events'),
+    path('switch_auto_update_status/', views.switch_auto_update_status,
+         name='switch_auto_update_status'),
     path('delete_event/<int:event_id>/', views.delete_event,
          name='delete_event'),
     path('create_event/', views.create_event, name='create_event'),
