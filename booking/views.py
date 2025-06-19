@@ -74,7 +74,7 @@ def event_search(request, date):
 
 
 # used to create a booking with tokens
-
+@login_required
 def book_event(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
 
@@ -95,15 +95,26 @@ def book_event(request, event_id):
             messages.error(request, "You have already booked this event")
             return redirect('event_search', date=event.date_of_event)
 
-        # Check for available token
-        token = Token.objects.filter(user=request.user, used=False).first()
-        if not token:
-            messages.error(request, "You don't have any available tokens to book this class.")
+        # Check for overlapping events
+        overlapping_events = Booking.objects.filter(
+            user=request.user,
+            event__date_of_event=event.date_of_event,
+            event__start_time__lt=event.end_time,
+            event__end_time__gt=event.start_time
+        )
+        if overlapping_events.exists():
+            messages.error(request, "You cannot book overlapping events")
             return redirect('event_search', date=event.date_of_event)
+
+        # Check for available token
+        token = Token.objects.filter(user=request.user, used=False, company=event.coach.company).first()
+        if not token:
+            messages.error(request, "You don't have any available tokens")
+            return redirect('event_search', date=event.date_of_event)
+        
 
         # Proceed with booking
         Booking.objects.create(event=event, user=request.user)
-        # Mark token as used
         token.used = True
         token.booking = Booking.objects.filter(event=event, user=request.user).first()
         token.save()
@@ -116,6 +127,7 @@ def book_event(request, event_id):
 
 
 # used to cancel a booking
+@login_required
 def cancel_event(request, event_id):
     user = request.user
     event = get_object_or_404(Event, pk=event_id)
