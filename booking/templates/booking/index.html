@@ -37,6 +37,7 @@ ClassFit | Classes | {{ current_date }}
         </div>
         {% endif %}
 
+
         <div class="date-navigation d-flex align-items-center justify-content-center mt-4">
             <button class="btn btn-secondary me-2" onclick="navigateTo('{{ previous_date }}')"
                 aria-label="Previous Date">&lt;</button>
@@ -44,6 +45,10 @@ ClassFit | Classes | {{ current_date }}
                 value="{{ current_date|date:'Y-m-d' }}" required style="max-width: 400px; text-align: center; font-size: 1.5em;">
             <button class="btn btn-secondary ms-2" onclick="navigateTo('{{ next_date }}')"
                 aria-label="Next Date">></button>
+        </div>
+
+        <div class="mt-4 text-center">
+            <h2>{{ current_date|date:"l" }}</h2>
         </div>
 
         <!-- Event Entries Column -->
