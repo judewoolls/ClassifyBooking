@@ -35,3 +35,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+document.getElementById('date-input').addEventListener('change', function () {
+    const selectedDate = this.value;
+    if (selectedDate) {
+      window.location.href = `/booking/${selectedDate}/`;
+    }
+  });
+  
