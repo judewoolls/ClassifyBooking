@@ -158,7 +158,7 @@ def cancel_event(request, event_id):
 
 
 # The coach views
-
+@login_required
 def delete_event(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     if request.method == 'POST':

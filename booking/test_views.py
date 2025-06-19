@@ -370,3 +370,48 @@ class CancelEventViewTest(TestCase):
         """Test that canceling a booking requires the user to be logged in."""
         response = self.client.post(reverse('cancel_event', args=[self.event.id]))
         self.assertRedirects(response, f'/accounts/login/?next={reverse("cancel_event", args=[self.event.id])}')
+
+# tests for deleting an event
+
+class DeleteEventViewTest(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='coach', password='testpass')
+        self.company = Company.objects.create(name='Test Co', manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.event = Event.objects.create(
+            event_name='Test Event',
+            date_of_event=date.today(),
+            start_time='12:00',
+            end_time='13:00',
+            venue=Venue.objects.create(name='Test Venue', company=self.company),
+            status=0,  # Future event
+            description='Test Description',
+            capacity=10,
+            coach=self.coach,
+        )
+        self.url = reverse('delete_event', args=[self.event.id])
+        self.redirect_url = reverse('event_search', kwargs={'date': self.event.date_of_event})
+
+    def test_redirects_if_not_logged_in(self):
+        response = self.client.post(self.url)
+        self.assertNotEqual(response.status_code, 200)
+        self.assertRedirects(response, f'/accounts/login/?next={self.url}')
+
+    def test_get_request_does_not_delete_event(self):
+        self.client.login(username='coach', password='testpass')
+        response = self.client.get(self.url)
+        self.assertRedirects(response, self.redirect_url)
+        self.assertTrue(Event.objects.filter(id=self.event.id).exists())
+
+    def test_post_request_deletes_event(self):
+        self.client.login(username='coach', password='testpass')
+        response = self.client.post(self.url, follow=True)
+        self.assertRedirects(response, self.redirect_url)
+        self.assertFalse(Event.objects.filter(id=self.event.id).exists())
+
+    def test_success_message_displayed(self):
+        self.client.login(username='coach', password='testpass')
+        response = self.client.post(self.url, follow=True)
+        messages = list(response.context['messages'])
+        self.assertTrue(any("Event deleted successfully" in str(m) for m in messages))
