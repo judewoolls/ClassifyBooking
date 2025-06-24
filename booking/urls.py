@@ -30,4 +30,6 @@ urlpatterns = [
          views.edit_template_event, name='edit_template_event'),
     path('<str:date>/', views.event_search, name='event_search'),
     path('<str:date>/<int:id>/', views.event_detail, name='event_detail'),
+    path('<int:event_id>/coach-no-show/', views.mark_coach_no_show, name='mark_coach_no_show'),
+
 ]

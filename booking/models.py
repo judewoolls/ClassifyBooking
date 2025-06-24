@@ -25,6 +25,8 @@ class Event(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
     status = models.IntegerField(choices=EVENT_STATUS)
+    coach_no_show = models.BooleanField(default=False)
+
 
     def number_of_bookings(self):
         return self.event_booking.count()

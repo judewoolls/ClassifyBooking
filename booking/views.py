@@ -27,8 +27,11 @@ def check_for_coach(request):
 @login_required
 def event_detail(request, id, date):
     current_date = datetime.strptime(date, "%Y-%m-%d").date()
-    queryset = Event.objects.filter(status=0, date_of_event=current_date)
+    queryset = Event.objects.filter(date_of_event=current_date)
     event = get_object_or_404(queryset, id=id, date_of_event=current_date)
+    print(Event.objects.get(pk=id))
+    print(date)
+
 
     return render(
         request,
@@ -527,3 +530,23 @@ def switch_auto_update_status(request):
     else:
         messages.error(request, "You are not authorized to change this setting.")
         return redirect('event_search', date=date.today())
+
+@login_required
+def mark_coach_no_show(request, event_id):
+    event = get_object_or_404(Event, pk=event_id)
+
+    if request.user != event.coach.coach:
+        messages.error(request, "You do not have permission to update this event.")
+        return redirect('event_search', date=event.date_of_event)
+
+    event.coach_no_show = True
+    event.save()
+
+    # Find used tokens for this event and mark them as unused
+    used_tokens = Token.objects.filter(booking__event=event, used=True)
+    for token in used_tokens:
+        token.used = False
+        token.save()
+
+    messages.success(request, "Marked as coach no-show and tokens reset.")
+    return redirect('event_search', date=event.date_of_event)
