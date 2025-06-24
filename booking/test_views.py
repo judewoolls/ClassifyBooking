@@ -7,7 +7,7 @@ import html
 from django.contrib.messages import get_messages
 
 from company.models import Coach, Company, Venue, Token
-from booking.models import Event, Booking
+from booking.models import Event, Booking, Day, TemplateEvent
 
 from booking.forms import EventForm
 
@@ -716,3 +716,69 @@ class CoachDashboardViewTest(TestCase):
         self.assertTrue(response.context['is_coach'])
         self.assertIn('company', response.context)
         self.assertEqual(response.context['company'], self.company)
+
+# this test case is for loading the schedule
+
+
+class ScheduleViewTest(TestCase):
+
+    def setUp(self):
+        # Create user, company, coach
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.venue = Venue.objects.create(name='Main Gym', company=self.company)
+
+        # Create a Day instance
+        self.day = Day.objects.create(day="Monday")
+
+        # Create some TemplateEvents for this coach and day
+        self.event1 = TemplateEvent.objects.create(
+            coach=self.coach,
+            day_of_week=self.day,
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            event_name="Morning Yoga",
+            capacity=10,
+            venue=self.venue
+        )
+        self.event2 = TemplateEvent.objects.create(
+            coach=self.coach,
+            day_of_week=self.day,
+            start_time=time(11, 0),
+            end_time=time(12, 0),
+            event_name="Pilates",
+            capacity=10,
+            venue=self.venue
+        )
+
+        self.url = reverse('schedule', args=[self.day.id])
+
+    def test_redirect_if_not_coach(self):
+        non_coach_user = User.objects.create_user(username='normaluser', password='testpass')
+        self.client.login(username='normaluser', password='testpass')
+
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse('event_search', args=[date.today()]))
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("not authorized" in m.message for m in messages))
+
+    def test_schedule_renders_correctly_for_coach(self):
+        self.client.login(username='coachuser', password='testpass')
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/schedule.html")
+
+        # Check context variables
+        self.assertIn('template_events', response.context)
+        self.assertIn('is_coach', response.context)
+        self.assertTrue(response.context['is_coach'])
+        self.assertIn('day', response.context)
+        self.assertEqual(response.context['day'], self.day)
+
+        # Check the template_events are correct and ordered by start_time
+        template_events = response.context['template_events']
+        self.assertEqual(list(template_events), [self.event1, self.event2])
