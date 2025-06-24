@@ -19,7 +19,7 @@
 </div>
 <div class="container d-flex justify-content-center mt-4">
     <div class="row mt-1 mb-4">
-        <p>Click here to add your schedule to the next 30 days. Please note this may cause overlaps and it is best to delete any events that will cause conflicts first</p>
+        <p>Click here to add your schedule to the next 30 days. Please note this may cause overlaps and it is best to delete any real events that are not in the schedule that will cause conflicts first</p>
         <form action="{% url 'generate_schedule' %}" method="post" class="mb-4">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Generate Schedule (Next 30 Days)</button>
