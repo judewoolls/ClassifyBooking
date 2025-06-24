@@ -502,3 +502,99 @@ class CreateMultiEventViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Form is invalid")  # Assuming you show this
         self.assertEqual(Event.objects.count(), 0)
+
+
+
+# tests for duplicating an event
+
+
+class DuplicateEventViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name='Test Gym', manager=self.user)
+        self.venue = Venue.objects.create(name='Main Gym', company=self.company)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+
+        self.original_date = date.today()
+        self.event = Event.objects.create(
+            coach=self.coach,
+            event_name="Yoga",
+            description="Morning yoga session",
+            venue=self.venue,
+            date_of_event=self.original_date,
+            capacity=10,
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            status=0,
+        )
+
+        self.url = reverse('duplicate_day_events', args=[self.original_date.strftime("%Y-%m-%d")])
+
+    def test_redirect_if_not_logged_in(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f'/accounts/login/?next={self.url}')
+
+    def test_get_duplicate_event_page(self):
+        self.client.login(username='coachuser', password='testpass')
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'booking/duplicate_events.html')
+        self.assertContains(response, self.original_date.strftime("%Y-%m-%d"))
+
+    def test_post_valid_date_array_duplicates_event(self):
+        self.client.login(username='coachuser', password='testpass')
+        new_dates = [
+            (self.original_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+            (self.original_date + timedelta(days=2)).strftime("%Y-%m-%d"),
+        ]
+        response = self.client.post(self.url, {
+            'dates-sent': ', '.join(new_dates)
+        }, follow=True)
+
+        self.assertRedirects(response, reverse('event_search', args=[self.original_date]))
+        self.assertEqual(Event.objects.filter(event_name="Yoga").count(), 3)  # original + 2 copies
+        self.assertTrue(Event.objects.filter(date_of_event=new_dates[0]).exists())
+        self.assertTrue(Event.objects.filter(date_of_event=new_dates[1]).exists())
+
+    def test_post_missing_dates_sent(self):
+        self.client.login(username='coachuser', password='testpass')
+        response = self.client.post(self.url, {}, follow=True)
+        self.assertRedirects(response, reverse('event_search', args=[self.original_date]))
+        messages = list(response.context['messages'])
+        self.assertEqual(len(messages), 1)
+        self.assertIn("Invalid date input", messages[0].message)
+
+    def test_invalid_url_date_returns_400(self):
+        self.client.login(username='coachuser', password='testpass')
+        bad_url = reverse('duplicate_day_events', args=["2024-99-99"])  # invalid date
+        response = self.client.get(bad_url)
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "Invalid date format", status_code=400)
+
+
+    def test_duplicate_only_own_company_events(self):
+        # Create an event from another company
+        other_user = User.objects.create_user(username='otheruser', password='pass')
+        other_company = Company.objects.create(name='Other Gym', manager=other_user)
+        other_coach = Coach.objects.create(coach=other_user, company=other_company)
+        Event.objects.create(
+            coach=other_coach,
+            event_name="Pilates",
+            description="Afternoon class",
+            venue=self.venue,
+            date_of_event=self.original_date,
+            capacity=5,
+            start_time=time(14, 0),
+            end_time=time(15, 0),
+            status=0
+        )
+
+        self.client.login(username='coachuser', password='testpass')
+        new_date = (self.original_date + timedelta(days=1)).strftime("%Y-%m-%d")
+        response = self.client.post(self.url, {'dates-sent': new_date}, follow=True)
+
+        # Only the original user's event should be duplicated
+        yoga_events = Event.objects.filter(event_name="Yoga")
+        pilates_events = Event.objects.filter(event_name="Pilates")
+        self.assertEqual(yoga_events.count(), 2)  # original + 1 copy
+        self.assertEqual(pilates_events.count(), 1)  # not duplicated
