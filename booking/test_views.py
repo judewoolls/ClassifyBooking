@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.utils.timezone import make_aware
 from datetime import date, time, timedelta
 import html
+from django.contrib.messages import get_messages
 
 from company.models import Coach, Company, Venue, Token
 from booking.models import Event, Booking
@@ -678,3 +679,40 @@ class EditEventViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", "event_name", "This field is required.")
         self.assertFormError(response, "form", "date_of_event", "This field is required.")
+
+# tests for coach dashboard
+
+
+class CoachDashboardViewTest(TestCase):
+
+    def setUp(self):
+        # Create user and company
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+
+        # Create coach linked to user and company
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+
+        self.url = reverse('coach_dashboard')
+
+    def test_redirect_if_not_coach(self):
+        # Create a non-coach user
+        non_coach_user = User.objects.create_user(username='normaluser', password='testpass')
+        self.client.login(username='normaluser', password='testpass')
+
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse('event_search', args=[date.today()]))
+
+        # Check error message is in messages
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("not authorized" in m.message for m in messages))
+
+    def test_dashboard_loads_for_coach(self):
+        self.client.login(username='coachuser', password='testpass')
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/coach_dashboard.html")
+        self.assertIn('is_coach', response.context)
+        self.assertTrue(response.context['is_coach'])
+        self.assertIn('company', response.context)
+        self.assertEqual(response.context['company'], self.company)
