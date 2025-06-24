@@ -30,10 +30,12 @@ ClassFit | {{ event.event_name }}
                     {% csrf_token %}
                     <button type="submit" class="btn btn-info" aria-label="Edit event">Edit</button>
                 </form>
+                    {% if event.status == 1 %}
                 <form method="post" action="{% url 'mark_coach_no_show' event.id %}" class="mt-4">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-warning">Mark Coach No Show</button>
                 </form>
+                    {% endif %}
                 {% endif %}
 
             </div>
