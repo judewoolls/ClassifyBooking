@@ -8,6 +8,8 @@ import html
 from company.models import Coach, Company, Venue, Token
 from booking.models import Event, Booking
 
+from booking.forms import EventForm
+
 
 class EventDetailViewTest(TestCase):
 
@@ -598,3 +600,81 @@ class DuplicateEventViewTest(TestCase):
         pilates_events = Event.objects.filter(event_name="Pilates")
         self.assertEqual(yoga_events.count(), 2)  # original + 1 copy
         self.assertEqual(pilates_events.count(), 1)  # not duplicated
+
+
+# tests for edit event
+
+
+class EditEventViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.client.login(username='testuser', password='testpass')
+        self.company = Company.objects.create(name='Test Gym', manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.venue = Venue.objects.create(name='Main Gym', company=self.company)
+        self.event = Event.objects.create(
+            event_name="Test Class",
+            date_of_event=date.today(),
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            venue = self.venue,
+            capacity=10,
+            coach=self.coach,  # adjust based on your model
+            status=0,  # Future event
+        )
+        self.url = reverse('edit_event', args=[self.event.id])
+
+    def test_get_edit_event_page_returns_200(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/edit_event.html")
+        self.assertContains(response, "Test Class")
+
+    def test_redirects_if_not_logged_in(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_invalid_event_id_returns_404(self):
+        response = self.client.get(reverse('edit_event', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_form_prefilled_with_event_data(self):
+        response = self.client.get(self.url)
+        form = response.context['form']
+        self.assertIsInstance(form, EventForm)
+        self.assertEqual(form.instance, self.event)
+
+    def test_post_valid_data_updates_event_and_redirects(self):
+        updated_data = {
+            'event_name': "Updated Class",
+            'description': "New description here",   # required field
+            'date_of_event': self.event.date_of_event.strftime('%Y-%m-%d'),  # format as string if needed
+            'start_time': self.event.start_time.strftime('%H:%M:%S'),       # format as string
+            'end_time': self.event.end_time.strftime('%H:%M:%S'),           # format as string
+            'capacity': 20,
+            'coach': self.user.pk,        # must be a valid user id in DB
+            'venue': self.venue.pk,       # must be a valid venue id in DB
+            'status': self.event.status,  # or a valid status value
+        }
+        response = self.client.post(self.url, updated_data, follow=True)
+        self.assertContains(response, "Event updated successfully")
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.event_name, "Updated Class")
+        self.assertEqual(self.event.capacity, 20)
+        self.assertRedirects(response, reverse('event_search', args=[self.event.date_of_event]))
+
+    def test_post_invalid_data_returns_200_and_shows_errors(self):
+        invalid_data = {
+            'event_name': "",  # Required field
+            'date_of_event': "",
+            'start_time': "",
+            'end_time': "",
+            'capacity': "",
+            'coach': "",
+        }
+        response = self.client.post(self.url, invalid_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, "form", "event_name", "This field is required.")
+        self.assertFormError(response, "form", "date_of_event", "This field is required.")

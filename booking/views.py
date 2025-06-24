@@ -313,14 +313,14 @@ def duplicate_event(request, date_str):
 def edit_event(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     if request.method == 'POST':
-        form = EventForm(request.POST, instance=event)
+        form = EventForm(request.POST, instance=event, user=request.user)
         if form.is_valid():
             event = form.save()
             messages.success(request, "Event updated successfully")
             return redirect('event_search', date=event.date_of_event)
 
     else:
-        form = EventForm(instance=event)
+        form = EventForm(instance=event, user=request.user)
     return render(
         request,
         "booking/edit_event.html",
