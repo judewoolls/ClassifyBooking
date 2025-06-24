@@ -44,11 +44,10 @@ class EventForm(forms.ModelForm):
             logger.debug(f"EventForm __init__ called with user: {user}")
             try:
                 coach = Coach.objects.get(coach=user)
-                self.fields['coach'].queryset = Coach.objects.filter(id=coach.id)
-                self.fields['coach'].initial = coach.id
-
-                self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
+                # Filter the dropdowns to only show the user's coach and venues
                 self.fields['coach'].queryset = Coach.objects.filter(company=coach.company)
+                self.fields['coach'].initial = coach.id
+                self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
 
                 logger.debug(f"Coach object: {coach}")
                 logger.debug(f"Coach company: {coach.company}")
@@ -60,9 +59,12 @@ class EventForm(forms.ModelForm):
                 self.fields['coach'].queryset = Coach.objects.none()
         else:
             logger.warning("User is None in EventForm __init__")
+            self.fields['venue'].queryset = Venue.objects.none()
+            self.fields['coach'].queryset = Coach.objects.none()
 
         self.user = user
         self.request = request
+
 
 
 
@@ -119,12 +121,12 @@ class MultiEventForm(forms.ModelForm):
         if user:
             try:
                 coach = Coach.objects.get(coach=user)  # Get the coach associated with the user
-                # Filter venues by the coach's company
                 self.fields['venue'].queryset = Venue.objects.filter(company=coach.company)
-                self.fields['coach'].queryset = Coach.objects.filter(company=coach.company)
+                self.fields['coach'].queryset = Coach.objects.filter(id=coach.id)
+                self.fields['coach'].initial = coach.id  # Set the initial value for the coach field
             except Coach.DoesNotExist:
-                # Handle the case where the user is not a coach.
                 self.fields['venue'].queryset = Venue.objects.none()
+                self.fields['coach'].queryset = Coach.objects.none()
 
 
 class TemplateEventForm(forms.ModelForm):

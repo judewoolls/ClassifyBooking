@@ -36,5 +36,5 @@ class EventFormTest(TestCase):
             'end_time': '11:00',
             'capacity': 10,
         }
-        form = EventForm(data=form_data)
+        form = EventForm(data=form_data, user=self.user)
         self.assertTrue(form.is_valid())

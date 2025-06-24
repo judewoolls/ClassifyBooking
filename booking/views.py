@@ -29,8 +29,6 @@ def event_detail(request, id, date):
     current_date = datetime.strptime(date, "%Y-%m-%d").date()
     queryset = Event.objects.filter(date_of_event=current_date)
     event = get_object_or_404(queryset, id=id, date_of_event=current_date)
-    print(Event.objects.get(pk=id))
-    print(date)
 
 
     return render(
@@ -188,8 +186,6 @@ def create_event(request):
             event.save()
             messages.success(request, "Event created successfully")
             return redirect('event_search', date=event.date_of_event)
-        else:
-            print(form.errors)
     else:
         form = EventForm(user=request.user, request=request)
     return render(request, "booking/create_event.html", {'form': form})
@@ -198,34 +194,36 @@ def create_event(request):
 
 @login_required
 def create_multi_event(request):
+    try:
+        coach = Coach.objects.get(coach=request.user)
+    except Coach.DoesNotExist:
+        messages.error(request, "You do not have permission to create events.")
+        return redirect('event_search', date=date.today())
+
     if request.method == "POST":
         form = MultiEventForm(request.POST, user=request.user)
         if form.is_valid():
-            date_          = form.cleaned_data["date_of_event"]
-            coach          = get_object_or_404(Coach, coach=request.user)
-            venue          = form.cleaned_data["venue"]
-            start_time     = form.cleaned_data["start_time"]
-            end_time       = form.cleaned_data["end_time"]
-            repeat         = form.cleaned_data["frequency"]
-            gap_minutes    = form.cleaned_data["gap"]
-            name           = form.cleaned_data["event_name"]
-            desc           = form.cleaned_data["description"]
-            cap            = form.cleaned_data["capacity"]
-            status         = form.cleaned_data["status"]
+            date_ = form.cleaned_data["date_of_event"]
+            venue = form.cleaned_data["venue"]
+            start_time = form.cleaned_data["start_time"]
+            end_time = form.cleaned_data["end_time"]
+            repeat = form.cleaned_data["frequency"]
+            gap_minutes = form.cleaned_data["gap"]
+            name = form.cleaned_data["event_name"]
+            desc = form.cleaned_data["description"]
+            cap = form.cleaned_data["capacity"]
+            status = form.cleaned_data["status"]
 
-            events   = []
-            gap_td   = timedelta(minutes=gap_minutes)
-            dur_td   = (
-                datetime.combine(date_, end_time)
-                - datetime.combine(date_, start_time)
-            )
+            events = []
+            gap_td = timedelta(minutes=gap_minutes)
+            dur_td = datetime.combine(date_, end_time) - datetime.combine(date_, start_time)
 
             start_dt = datetime.combine(date_, start_time)
 
             for _ in range(repeat):
                 end_dt = start_dt + dur_td
 
-                # break if start OR end spills into the next day
+                # Break if start or end spills into the next day
                 if start_dt.date() != date_:
                     break
 
@@ -243,15 +241,16 @@ def create_multi_event(request):
                     )
                 )
 
-                # next class
+                # Next class
                 start_dt = end_dt + gap_td
 
-            Event.objects.bulk_create(events)
-            messages.success(
-                request,
-                f"{len(events)} event(s) created successfully."
-            )
-            return redirect("event_search", date=date_)
+            if events:
+                Event.objects.bulk_create(events)
+                messages.success(request, f"{len(events)} event(s) created successfully.")
+                return redirect("event_search", date=date_)
+            else:
+                messages.error(request, "No events were created. Please check your input.")
+                return render(request, "booking/multi_event.html", {"form": form})
 
         messages.error(request, "Form is invalid. Please correct the errors.")
         return render(request, "booking/multi_event.html", {"form": form})
@@ -319,8 +318,7 @@ def edit_event(request, event_id):
             event = form.save()
             messages.success(request, "Event updated successfully")
             return redirect('event_search', date=event.date_of_event)
-        else:
-            print(form.errors)  # Debugging information
+
     else:
         form = EventForm(instance=event)
     return render(

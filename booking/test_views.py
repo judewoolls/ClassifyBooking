@@ -415,3 +415,90 @@ class DeleteEventViewTest(TestCase):
         response = self.client.post(self.url, follow=True)
         messages = list(response.context['messages'])
         self.assertTrue(any("Event deleted successfully" in str(m) for m in messages))
+
+
+#tests for creating multi events
+
+class CreateMultiEventViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.company = Company.objects.create(name='Test Co', manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.venue = Venue.objects.create(name='Main Hall', company=self.company)
+        self.url = reverse('create_multi_event')
+
+    def test_create_multi_event_redirects_on_success(self):
+        """Form with valid data should redirect after creating events."""
+        self.client.login(username='testuser', password='testpass')
+        data = {
+            'date_of_event': date.today().strftime('%Y-%m-%d'),
+            'venue': self.venue.pk,
+            'start_time': '10:00',
+            'end_time': '11:00',
+            'frequency': 2,
+            'gap': 30,
+            'event_name': 'Test Event',
+            'description': 'Description',
+            'capacity': 10,
+            'status': 0,
+            'coach': self.coach.pk,  # Ensure coach is set
+        }
+        response = self.client.post(self.url, data=data)
+        self.assertEqual(response.status_code, 302)  # Redirect
+        self.assertEqual(Event.objects.count(), 2)
+
+    def test_create_multi_event_with_invalid_form(self):
+        """Missing required fields should return the form with errors."""
+        self.client.login(username='testuser', password='testpass')
+        data = {
+            'date_of_event': '',
+            'venue': self.venue.pk,
+            'start_time': '10:00',
+            'end_time': '11:00',
+            'frequency': 2,
+            'gap': 30,
+            'event_name': 'Test Event',
+            'description': 'Description',
+            'capacity': 10,
+            'status': 0,
+            'coach': self.coach.pk,  # Ensure coach is set
+        }
+        response = self.client.post(self.url, data=data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "This field is required.")
+        self.assertEqual(Event.objects.count(), 0)
+
+    def test_create_multi_event_no_login(self):
+        """Unauthenticated users should be redirected."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse('account_login')))
+
+    def test_create_multi_event_no_coach(self):
+        """Users who are not coaches should be redirected."""
+        other_user = User.objects.create_user(username='noncoach', password='testpass')
+        self.client.login(username='noncoach', password='testpass')
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('event_search', args=[date.today()]))
+
+    def test_create_multi_event_with_zero_frequency(self):
+        """Frequency of 0 should not create events."""
+        self.client.login(username='testuser', password='testpass')
+        data = {
+            'date_of_event': date.today().strftime('%Y-%m-%d'),
+            'venue': self.venue.pk,
+            'start_time': '10:00',
+            'end_time': '11:00',
+            'frequency': 0,
+            'gap': 30,
+            'event_name': 'Test Event',
+            'description': 'Description',
+            'capacity': 10,
+            'status': 0,
+            'coach': self.coach.pk,  # Ensure coach is set
+        }
+        response = self.client.post(self.url, data=data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Form is invalid")  # Assuming you show this
+        self.assertEqual(Event.objects.count(), 0)
