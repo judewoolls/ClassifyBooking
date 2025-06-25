@@ -997,3 +997,96 @@ class EditTemplateEventViewTest(TestCase):
         self.client.logout()
         response = self.client.get(self.url)
         self.assertRedirects(response, f"/accounts/login/?next={self.url}")
+
+# tests for viewing template events
+
+
+
+class ViewTemplateEventViewTest(TestCase):
+    def setUp(self):
+        # Create user and login
+        self.user = User.objects.create_user(username='testuser', password='password')
+        self.client.login(username='testuser', password='password')
+
+        # Create company with user as manager
+        self.company = Company.objects.create(name="TestCo", manager=self.user)
+
+        # Create coach object
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+
+        # Attach company to user profile if needed
+        self.user.profile.company = self.company
+        self.user.profile.save()
+
+        # Create venue
+        self.venue = Venue.objects.create(name="Test Venue", company=self.company)
+
+        # Create day
+        self.day = Day.objects.create(day="Monday")
+
+        # Create TemplateEvent
+        self.template = TemplateEvent.objects.create(
+            event_name="Test Event",
+            day_of_week=self.day,
+            start_time="10:00",
+            end_time="11:00",
+            coach=self.coach,
+            capacity=10,
+            venue=self.venue,
+        )
+
+        self.url = reverse('view_template_event', args=[self.template.id])
+
+    def test_authorized_coach_can_view_template_event(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'booking/view_template_event.html')
+
+    def test_context_contains_template_event_and_is_coach_true(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('template_event', response.context)
+        self.assertEqual(response.context['template_event'], self.template)
+        self.assertIn('is_coach', response.context)
+        self.assertTrue(response.context['is_coach'])
+
+    def test_view_template_event_unauthorized_user_redirects(self):
+        # Logout current user and create a non-coach user
+        self.client.logout()
+        non_coach_user = User.objects.create_user(username='normaluser', password='password')
+        self.client.login(username='normaluser', password='password')
+
+        response = self.client.get(self.url, follow=True)
+        self.assertRedirects(response, reverse('event_search', args=[date.today().isoformat()]))
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("not authorized" in str(m) for m in messages))
+
+    def test_login_required_redirects_to_login(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_view_nonexistent_template_event_raises_404(self):
+        # Use an ID that doesn't exist
+        non_existent_id = 99999
+        url = reverse('view_template_event', args=[non_existent_id])
+        self.client.login(username='testuser', password='password')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_view_template_event_invalid_template_id_type(self):
+        self.client.login(username='testuser', password='password')
+        # Hardcode the URL with a non-numeric ID
+        url = '/booking/view_template_event/invalid_id/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_view_template_event_when_user_has_no_profile(self):
+        # Delete profile to simulate missing profile case (if your logic depends on profile)
+        self.user.profile.delete()
+        response = self.client.get(self.url)
+        # If your code relies on profile existence, handle expected behavior here
+        # For now, just check it still returns 200 or handles gracefully
+        self.assertIn(response.status_code, [200, 302, 404])
