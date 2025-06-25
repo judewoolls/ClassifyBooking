@@ -9,7 +9,7 @@ from django.contrib.messages import get_messages
 from company.models import Coach, Company, Venue, Token, UserProfile
 from booking.models import Event, Booking, Day, TemplateEvent
 
-from booking.forms import EventForm
+from booking.forms import EventForm, TemplateEventForm
 
 
 class EventDetailViewTest(TestCase):
@@ -917,3 +917,83 @@ class DeleteTemplateEventViewTest(TestCase):
         # Error message
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any("not authorized" in m.message.lower() for m in messages))
+
+# test for editing template events
+
+
+class EditTemplateEventViewTest(TestCase):
+    def setUp(self):
+        # Create user and login
+        self.user = User.objects.create_user(username='testuser', password='password')
+        self.client.login(username='testuser', password='password')
+        # Create company with user as manager
+        self.company = Company.objects.create(name="TestCo", manager=self.user)
+        # Create coach object
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+
+        # Attach company to user profile (if applicable)
+        self.user.profile.company = self.company
+        self.user.profile.save()
+
+        # Create venue under company
+        self.venue = Venue.objects.create(name="Test Venue", company=self.company)
+
+        # Create Day
+        self.day = Day.objects.create(day="Monday")
+
+        # Create TemplateEvent
+        self.template = TemplateEvent.objects.create(
+            event_name="Original Title",
+            day_of_week=self.day,
+            description='lorem',
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            coach=self.coach,
+            capacity=10,
+            venue=self.venue,  # Assuming TemplateEvent has a venue field
+        )
+
+        # URL to edit the template event
+        self.url = reverse('edit_template_event', args=[self.template.id])
+
+    def test_get_edit_template_event_renders_form(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/edit_template_event.html")
+        self.assertIsInstance(response.context['form'], TemplateEventForm)
+        self.assertContains(response, "Original Title")
+
+    def test_post_valid_data_updates_template_event(self):
+        post_data = {
+            'event_name': 'Updated Title',
+            'start_time': '12:00',
+            'end_time': '13:00',
+            'coach': self.coach.id,
+            'day_of_week': self.day.id,
+            'venue': self.venue.venue_id,
+            'description': 'lorem',
+            'capacity': 10,
+        }
+        response = self.client.post(self.url, data=post_data)
+        self.template.refresh_from_db()
+        self.assertEqual(self.template.event_name, 'Updated Title')
+        self.assertRedirects(response, reverse('schedule', args=[self.day.id]))
+
+    def test_post_invalid_data_shows_form_errors(self):
+        post_data = {
+            'event_name': '',  # Title required
+            'start_time': '12:00',
+            'end_time': '13:00',
+            'coach': self.coach,
+            'day_of_week': self.day.id,
+            'venue': self.venue.venue_id,
+        }
+        response = self.client.post(self.url, data=post_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/edit_template_event.html")
+        self.assertFormError(response, 'form', 'event_name', 'This field is required.')
+
+    def test_login_required_redirects_to_login(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertRedirects(response, f"/accounts/login/?next={self.url}")
