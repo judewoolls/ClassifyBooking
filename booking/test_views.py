@@ -782,3 +782,76 @@ class ScheduleViewTest(TestCase):
         # Check the template_events are correct and ordered by start_time
         template_events = response.context['template_events']
         self.assertEqual(list(template_events), [self.event1, self.event2])
+
+
+class AddTemplateEventViewTest(TestCase):
+
+    def setUp(self):
+        # User, company, coach, day and venue setup
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name="Test Gym", manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.day = Day.objects.create(day="Tuesday")
+        self.venue = Venue.objects.create(name="Main Hall", company=self.company)
+
+        self.url = reverse('add_template_event', args=[self.day.id])
+
+        self.valid_data = {
+            'event_name': 'Spin Class',
+            'description': 'High intensity cycling',
+            'venue': self.venue,
+            'start_time': '09:00',
+            'end_time': '10:00',
+            'capacity': 12,
+        }
+
+    def test_get_add_template_event_form(self):
+        self.client.login(username='coachuser', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'booking/template_event.html')
+        self.assertIn('form', response.context)
+        self.assertIn('day_id', response.context)
+        self.assertEqual(response.context['day_id'], self.day.id)
+
+    def test_post_valid_template_event_form_creates_event(self):
+        self.client.login(username='coachuser', password='testpass')
+
+        data = self.valid_data.copy()
+        data['day_of_week'] = str(self.day.id)
+        data['coach'] = str(self.coach.id)
+        data['venue'] = str(self.venue.venue_id)  # Add this line!
+
+        response = self.client.post(self.url, data)
+
+        self.assertEqual(TemplateEvent.objects.count(), 1)
+        event = TemplateEvent.objects.first()
+        self.assertEqual(event.event_name, 'Spin Class')
+        self.assertEqual(event.coach, self.coach)
+        self.assertEqual(event.venue, self.venue)
+        self.assertEqual(event.day_of_week, self.day)
+
+        self.assertRedirects(response, reverse('schedule', args=[self.day.id]))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("created successfully" in m.message for m in messages))
+
+    def test_post_invalid_template_event_form_renders_errors(self):
+        self.client.login(username='coachuser', password='testpass')
+
+        invalid_data = self.valid_data.copy()
+        invalid_data['event_name'] = ''  # Missing required field
+
+        response = self.client.post(self.url, invalid_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'event_name', 'This field is required.')
+
+        self.assertEqual(TemplateEvent.objects.count(), 0)
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("problem with the form" in m.message for m in messages))
+
+    def test_redirects_if_not_logged_in(self):
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f'{login_url}?next={self.url}')

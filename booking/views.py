@@ -343,6 +343,7 @@ def coach_dashboard(request):
         {'is_coach': True, 'company': company}
     )
 
+@login_required
 def schedule(request, day_id):
     if not check_for_coach(request):
         messages.error(request, "You are not authorized to view this page")
@@ -360,6 +361,7 @@ def schedule(request, day_id):
     )
 
 
+@login_required
 def add_template_event(request, day_id):
     day = get_object_or_404(Day, id=day_id)
 
