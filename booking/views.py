@@ -384,8 +384,16 @@ def add_template_event(request, day_id):
 
 @login_required
 def delete_template_event(request, template_id):
+
     template = get_object_or_404(TemplateEvent, pk=template_id)
     day = get_object_or_404(Day, id=template.day_of_week.id)
+
+    user_is_coach = Coach.objects.filter(coach=request.user).exists()
+
+    if not user_is_coach:
+        messages.error(request, "You are not authorized to delete this template event.")
+        return redirect('event_search', date=date.today())
+    
     if request.method == 'POST':
         template.delete()
         messages.success(request, "Template event deleted successfully")

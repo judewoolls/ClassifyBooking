@@ -6,7 +6,7 @@ from datetime import date, time, timedelta
 import html
 from django.contrib.messages import get_messages
 
-from company.models import Coach, Company, Venue, Token
+from company.models import Coach, Company, Venue, Token, UserProfile
 from booking.models import Event, Booking, Day, TemplateEvent
 
 from booking.forms import EventForm
@@ -855,3 +855,65 @@ class AddTemplateEventViewTest(TestCase):
         response = self.client.get(self.url)
         login_url = reverse('account_login')
         self.assertRedirects(response, f'{login_url}?next={self.url}')
+
+# tests for deleting templates
+
+
+class DeleteTemplateEventViewTest(TestCase):
+    def setUp(self):
+        # Setup a coach and related data
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name="Test Gym", manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.day = Day.objects.create(day="Tuesday")
+        self.venue = Venue.objects.create(name="Main Hall", company=self.company)
+
+        self.template_event = TemplateEvent.objects.create(
+            event_name="Boxing",
+            description="Heavy bag work",
+            coach=self.coach,
+            day_of_week=self.day,
+            venue=self.venue,
+            capacity=10,
+            start_time=time(12, 0),
+            end_time=time(13, 0)
+        )
+
+        self.url = reverse('delete_template_event', args=[self.template_event.id])
+
+    def test_delete_template_event_as_authorized_coach(self):
+        self.client.login(username='coachuser', password='testpass')
+        response = self.client.post(self.url)
+
+        # Confirm deletion
+        self.assertEqual(TemplateEvent.objects.count(), 0)
+
+        # Confirm redirection
+        self.assertRedirects(response, reverse('schedule', args=[self.day.id]))
+
+        # Confirm message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("deleted successfully" in m.message.lower() for m in messages))
+
+    def test_get_request_does_not_delete_template_event(self):
+        self.client.login(username='coachuser', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(TemplateEvent.objects.count(), 1)
+        self.assertRedirects(response, reverse('schedule', args=[self.day.id]))
+
+    def test_unauthorized_user_cannot_delete_template_event(self):
+        other_user = User.objects.create_user(username='randomuser', password='testpass')
+        self.client.login(username='randomuser', password='testpass')
+
+        response = self.client.post(self.url)
+
+        # Should still exist
+        self.assertEqual(TemplateEvent.objects.count(), 1)
+
+        # Redirected to event search or error page
+        self.assertRedirects(response, reverse('event_search', args=[date.today().isoformat()]))
+
+        # Error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("not authorized" in m.message.lower() for m in messages))
