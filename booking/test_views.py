@@ -5,6 +5,7 @@ from django.utils.timezone import make_aware
 from datetime import date, time, timedelta
 import html
 from django.contrib.messages import get_messages
+from unittest.mock import patch
 
 from company.models import Coach, Company, Venue, Token, UserProfile
 from booking.models import Event, Booking, Day, TemplateEvent
@@ -1092,7 +1093,6 @@ class ViewTemplateEventViewTest(TestCase):
         self.assertIn(response.status_code, [200, 302, 404])
 
 
-
 class DuplicateTemplateScheduleViewTest(TestCase):
     def setUp(self):
         # Set up coach user
@@ -1220,3 +1220,60 @@ class DuplicateTemplateScheduleViewTest(TestCase):
         self.assertRedirects(response, reverse('schedule', args=[self.source_day.id]))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any("Source and target days cannot be the same" in str(m) for m in messages))
+
+class GenerateScheduleViewTest(TestCase):
+    def setUp(self):
+        # Create user, company, and coach
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+
+        # Attach company to user profile
+        self.user.profile.company = self.company
+        self.user.profile.save()
+
+        self.url = reverse('generate_schedule')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that the view redirects unauthenticated users to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_redirect_if_not_coach(self):
+        """Test that non-coach users are redirected with an error message."""
+        non_coach_user = User.objects.create_user(username='normaluser', password='testpass')
+        self.client.login(username='normaluser', password='testpass')
+
+        response = self.client.get(self.url, follow=True)
+        self.assertRedirects(response, reverse('event_search', args=[date.today().isoformat()]))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("You are not authorized to generate a schedule." in m.message for m in messages))
+
+    @patch('booking.views.generate_schedule_for_next_30_days')
+    def test_schedule_generated_successfully(self, mock_generate_schedule):
+        """Test that the schedule is generated successfully for the next 30 days."""
+        self.client.login(username='coachuser', password='testpass')
+        mock_generate_schedule.return_value = 15  # Mock 15 events created
+
+        response = self.client.get(self.url, follow=True)
+        self.assertRedirects(response, reverse('coach_dashboard'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("15 events created for the next 30 days." in m.message for m in messages))
+
+        # Ensure the mock was called with the correct company
+        mock_generate_schedule.assert_called_once_with(self.company)
+
+    @patch('booking.views.generate_schedule_for_next_30_days')
+    def test_no_events_created(self, mock_generate_schedule):
+        """Test that a success message is shown even if no events are created."""
+        self.client.login(username='coachuser', password='testpass')
+        mock_generate_schedule.return_value = 0  # Mock 0 events created
+
+        response = self.client.get(self.url, follow=True)
+        self.assertRedirects(response, reverse('coach_dashboard'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("0 events created for the next 30 days." in m.message for m in messages))
+
+        # Ensure the mock was called with the correct company
+        mock_generate_schedule.assert_called_once_with(self.company)

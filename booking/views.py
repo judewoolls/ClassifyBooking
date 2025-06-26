@@ -502,7 +502,7 @@ def generate_schedule_view(request):
     created = generate_schedule_for_next_30_days(company)
     messages.success(request, f"{created} events created for the next 30 days.")
 
-    return redirect('coach_dashboard')  # or wherever you want to go after
+    return redirect('coach_dashboard')  
 
 @login_required
 def delete_future_events(request):
