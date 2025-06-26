@@ -442,7 +442,7 @@ def duplicate_template_schedule(request, source_day_id):
 
     if check_for_coach(request) == False:
         # If the user is not a coach, redirect with an error message
-        messages.error(request, "You are not authorized to duplicate this schedule.")
+        messages.error(request, "You are not authorised to duplicate this schedule.")
         return redirect('schedule', day_id=source_day.id)
 
     if request.method == 'POST':
@@ -450,6 +450,10 @@ def duplicate_template_schedule(request, source_day_id):
         if form.is_valid():
             target_day = form.cleaned_data['target_day']
 
+            # check that the day is not the same they are trying to copy from
+            if target_day == source_day:
+                messages.error(request, "Source and target days cannot be the same.")
+                return redirect('schedule', day_id=source_day.id)
             # Clear existing template events for target day
             TemplateEvent.objects.filter(day_of_week=target_day).delete()
 

@@ -1090,3 +1090,133 @@ class ViewTemplateEventViewTest(TestCase):
         # If your code relies on profile existence, handle expected behavior here
         # For now, just check it still returns 200 or handles gracefully
         self.assertIn(response.status_code, [200, 302, 404])
+
+
+
+class DuplicateTemplateScheduleViewTest(TestCase):
+    def setUp(self):
+        # Set up coach user
+        self.coach_user = User.objects.create_user(username='coach', password='password')
+        self.company = Company.objects.create(name="Test Company", manager=self.coach_user)
+        self.coach = Coach.objects.create(coach=self.coach_user, company=self.company)
+        self.coach_user.profile.save()
+        self.venue = Venue.objects.create(
+            name="Room 1",
+            company=self.company,
+            address="123 Main St",
+            city="Testville",
+            postcode="TE57GY",
+        )
+
+        self.another_venue = Venue.objects.create(
+            name="Room 2",
+            company=self.company,
+            address="456 Another St",
+            city="Testville",
+            postcode="TE58GY",
+        )
+
+        # Non-coach user
+        self.normal_user = User.objects.create_user(username='user', password='password')
+
+        # Days
+        self.source_day = Day.objects.create(day="Monday")
+        self.target_day = Day.objects.create(day="Tuesday")
+
+        # Source template events
+        self.template_event = TemplateEvent.objects.create(
+            coach=self.coach,
+            day_of_week=self.source_day,
+            event_name="Yoga",
+            description="Morning session",
+            venue=self.venue,
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            capacity=10,
+        )
+
+        self.url = reverse('duplicate_template_schedule', args=[self.source_day.id])
+
+    def test_login_required(self):
+        """Test that the view requires login."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_non_coach_user_redirects(self):
+        """Test that a non-coach user is redirected."""
+        self.client.login(username='user', password='password')
+        response = self.client.get(self.url, follow=True)
+        self.assertRedirects(response, reverse('event_search', args=[date.today().isoformat()]))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("not authorized" in str(m) for m in messages))
+
+    def test_get_request_displays_form(self):
+        """Test that a GET request displays the duplication form."""
+        self.client.login(username='coach', password='password')
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'booking/duplicate_template_schedule.html')
+        self.assertIn('form', response.context)
+        self.assertIn('source_day', response.context)
+        self.assertEqual(response.context['source_day'], self.source_day)
+
+    def test_successful_post_duplicates_events(self):
+        """Test that a valid POST request duplicates events."""
+        self.client.login(username='coach', password='password')
+        response = self.client.post(self.url, {
+            'target_day': self.target_day.id
+        }, follow=True)
+
+        self.assertRedirects(response, reverse('schedule', args=[self.target_day.id]))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("Successfully duplicated" in str(m) for m in messages))
+
+        duplicated_events = TemplateEvent.objects.filter(day_of_week=self.target_day)
+        self.assertEqual(duplicated_events.count(), 1)
+        self.assertEqual(duplicated_events.first().event_name, "Yoga")
+
+    def test_existing_target_day_events_are_cleared(self):
+        """Test that existing events on the target day are cleared before duplication."""
+        # Add an event to the target day
+        TemplateEvent.objects.create(
+            coach=self.coach,
+            day_of_week=self.target_day,
+            event_name="Spin Class",
+            description="Evening",
+            venue=self.another_venue,
+            start_time=time(18, 0),
+            end_time=time(19, 0),
+            capacity=15,
+        )
+
+        self.client.login(username='coach', password='password')
+        self.client.post(self.url, {
+            'target_day': self.target_day.id
+        })
+
+        # The original event should be deleted
+        remaining_events = TemplateEvent.objects.filter(day_of_week=self.target_day)
+        self.assertEqual(remaining_events.count(), 1)
+        self.assertEqual(remaining_events.first().event_name, "Yoga")
+
+    def test_invalid_form_shows_form_again(self):
+        """Test that an invalid form submission shows the form with errors."""
+        self.client.login(username='coach', password='password')
+        response = self.client.post(self.url, {
+            'target_day': ''  # Invalid
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'booking/duplicate_template_schedule.html')
+        self.assertFormError(response, 'form', 'target_day', 'This field is required.')
+
+    def test_source_and_target_days_cannot_be_same(self):
+        """Test that source and target days cannot be the same."""
+        self.client.login(username='coach', password='password')
+        response = self.client.post(self.url, {
+            'target_day': self.source_day.id  # Same as source day
+        }, follow=True)
+
+        self.assertRedirects(response, reverse('schedule', args=[self.source_day.id]))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("Source and target days cannot be the same" in str(m) for m in messages))
