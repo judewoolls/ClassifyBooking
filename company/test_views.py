@@ -1,7 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
-from company.models import Company, Coach, Token
+from company.models import Company, Coach
+from django.contrib.messages import get_messages
 from company.forms import CreateCompanyForm, ChangeCompanyDetailsForm
 
 class CompanyDashboardViewTest(TestCase):
@@ -131,3 +132,47 @@ class ChangeCompanyDetailsViewTest(TestCase):
         self.assertContains(response, 'Form is not Valid')
         self.company.refresh_from_db()
         self.assertEqual(self.company.name, 'Test Company')  # Ensure the name is unchanged
+
+class ViewCoachesViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a coach user
+        self.coach_user = User.objects.create_user(username='coach', password='testpass')
+        Coach.objects.create(coach=self.coach_user, company=self.company)
+
+        # URL for the view
+        self.url = reverse('view_coaches')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_view_coaches_with_coaches(self):
+        """Test that the view displays coaches when they exist."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_coaches.html')
+        self.assertContains(response, 'Found 1 coaches for your company.')
+        self.assertContains(response, 'coach')
+
+    def test_view_coaches_no_coaches(self):
+        """Test that the view displays a message when no coaches exist."""
+        # Remove all coaches
+        Coach.objects.all().delete()
+
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_coaches.html')
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('No coaches found for your company.' in str(m) for m in messages))
