@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 from company.models import Company, Coach
-from company.forms import AddCoachForm, CreateCompanyForm, ChangeCompanyDetailsForm
+from company.forms import AddCoachForm, CreateCompanyForm, ChangeCompanyDetailsForm, RemoveCoachForm
 from django.contrib.messages import get_messages
 
 class CompanyDashboardViewTest(TestCase):
@@ -236,4 +236,62 @@ class AddCoachViewTest(TestCase):
         self.assertFalse(Coach.objects.filter(company=self.company).exists())
 
         # Check for the error message
+        self.assertContains(response, 'This field is required.')  # Check if the error is rendered in the template
+
+class RemoveCoachViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a coach user
+        self.coach_user = User.objects.create_user(username='coach', password='testpass')
+        self.coach = Coach.objects.create(coach=self.coach_user, company=self.company)
+
+        # URL for the remove coach view
+        self.url = reverse('remove_coach')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_get_remove_coach_form(self):
+        """Test that the remove coach form is displayed for authenticated users."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/remove_coach.html')
+        self.assertIsInstance(response.context['form'], RemoveCoachForm)
+
+    def test_post_valid_remove_coach_form(self):
+        """Test that a valid form submission removes a coach."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {'coach': self.coach.id}
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the coach was removed
+        self.assertFalse(Coach.objects.filter(id=self.coach.id).exists())
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any(f'Coach: {self.coach} removed successfully.' in str(m) for m in messages))
+
+    def test_post_invalid_remove_coach_form(self):
+        """Test that an invalid form submission does not remove a coach."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {'coach': ''}  # Invalid data
+        response = self.client.post(self.url, data=form_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/remove_coach.html')
+        self.assertTrue(Coach.objects.filter(id=self.coach.id).exists())  # Coach should still exist
         self.assertContains(response, 'This field is required.')  # Check if the error is rendered in the template
