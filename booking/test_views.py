@@ -1490,5 +1490,78 @@ class SwitchAutoUpdateStatusViewTest(TestCase):
         self.assertRedirects(response, reverse('event_search', args=[date.today()]))
 
 
+class MarkCoachNoShowViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user, company, coach, and event
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.coach = Coach.objects.create(coach=self.manager_user, company=self.company)
+        self.venue = Venue.objects.create(name="Main Hall", company=self.company)
 
+        # Create an event
+        self.event = Event.objects.create(
+            event_name="Test Event",
+            date_of_event=date.today(),
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            venue=self.venue,
+            status=0,  # Future event
+            description="Test Description",
+            capacity=10,
+            coach=self.coach,
+        )
+
+        # Create a token and booking for the event
+        self.token = Token.objects.create(user=self.manager_user, company=self.company, used=True)
+        self.booking = Booking.objects.create(user=self.manager_user, event=self.event)
+        self.token.booking = self.booking
+        self.token.save()
+
+        # URL for the view
+        self.url = reverse('mark_coach_no_show', args=[self.event.id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that the view redirects unauthenticated users to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_non_coach_cannot_mark_no_show(self):
+        """Test that a non-coach user cannot mark an event as no-show."""
+        non_coach_user = User.objects.create_user(username='noncoach', password='testpass')
+        self.client.login(username='noncoach', password='testpass')
+
+        response = self.client.post(self.url, follow=True)
+        self.assertRedirects(response, reverse('event_search', args=[self.event.date_of_event]))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("You do not have permission to update this event." in m.message for m in messages))
+
+        # Ensure the event is not marked as no-show
+        self.event.refresh_from_db()
+        self.assertFalse(self.event.coach_no_show)
+
+    def test_coach_can_mark_no_show(self):
+        """Test that the coach can mark an event as no-show."""
+        self.client.login(username='manager', password='testpass')
+
+        response = self.client.post(self.url, follow=True)
+        self.assertRedirects(response, reverse('event_search', args=[self.event.date_of_event]))
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("Marked as coach no-show and tokens reset." in m.message for m in messages))
+
+        # Ensure the event is marked as no-show
+        self.event.refresh_from_db()
+        self.assertTrue(self.event.coach_no_show)
+
+        # Ensure the token is reset
+        self.token.refresh_from_db()
+        self.assertFalse(self.token.used)
+
+    def test_invalid_event_id_returns_404(self):
+        """Test that an invalid event ID returns a 404 error."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.post(reverse('mark_coach_no_show', args=[9999]))
+        self.assertEqual(response.status_code, 404)
 
