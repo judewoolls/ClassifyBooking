@@ -5,13 +5,14 @@ from django.utils.timezone import make_aware
 from datetime import date, time, timedelta
 import html
 from django.contrib.messages import get_messages
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 from company.models import Coach, Company, Venue, Token, UserProfile
 from booking.models import Event, Booking, Day, TemplateEvent
 
 from booking.forms import EventForm, TemplateEventForm, BulkDeleteEventsForm
 
+from django.contrib.auth import get_user_model
 
 class EventDetailViewTest(TestCase):
 
@@ -1423,3 +1424,79 @@ class DeleteFutureEventsViewTest(TestCase):
 
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any("2 future event(s) deleted." in m.message for m in messages))
+
+
+class SwitchAutoUpdateStatusViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user, auto_updates=False)
+
+        # Attach the company to the manager's profile
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a coach user who is not the manager
+        self.coach_user = User.objects.create_user(username='coach', password='testpass')
+        self.coach_user.profile.company = self.company
+        self.coach_user.profile.save()
+
+        # URL for the view
+        self.url = reverse('switch_auto_update_status')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that the view redirects unauthenticated users to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_manager_can_toggle_auto_update_status(self):
+        """Test that the manager can toggle the auto-update status."""
+        self.client.login(username='manager', password='testpass')
+
+        # Toggle auto-updates from False to True
+        response = self.client.post(self.url, follow=True)
+        self.company.refresh_from_db()
+        self.assertTrue(self.company.auto_updates)
+
+        # Check success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("Auto-update status toggled successfully." in m.message for m in messages))
+
+        # Toggle auto-updates from True to False
+        response = self.client.post(self.url, follow=True)
+        self.company.refresh_from_db()
+        self.assertFalse(self.company.auto_updates)
+
+        # Check success message again
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("Auto-update status toggled successfully." in m.message for m in messages))
+
+    def test_non_manager_cannot_toggle_auto_update_status(self):
+        """Test that a non-manager user cannot toggle the auto-update status."""
+        self.client.login(username='coach', password='testpass')
+
+        response = self.client.post(self.url, follow=True)
+        self.company.refresh_from_db()
+
+        # Ensure auto-updates remain unchanged
+        self.assertFalse(self.company.auto_updates)
+
+        # Check error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("You are not authorized to change this setting." in m.message for m in messages))
+
+        # Ensure redirection to event search
+        self.assertRedirects(response, reverse('event_search', args=[date.today()]))
+
+
+    def test_error_handling_on_exception(self):
+        self.client.login(username='manager', password='testpass')
+
+        with patch('company.models.Company.save', side_effect=Exception("Simulated DB failure")):
+            response = self.client.post(self.url, follow=True)
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("An error occurred while toggling auto updates." in m.message for m in messages))
+
+

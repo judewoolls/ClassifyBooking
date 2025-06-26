@@ -530,19 +530,16 @@ def delete_future_events(request):
 
 @login_required
 def switch_auto_update_status(request):
-    if request.user.profile.company.manager == request.user:
+    if request.user.profile.company.manager_id == request.user.id:
         try:
             company = request.user.profile.company
-            if company.auto_updates == False:
-                company.auto_updates = True
-            else:
-                company.auto_updates = False
+            company.auto_updates = not company.auto_updates  # Toggle the auto-updates status
             company.save()  # Save the changes to the database
             messages.success(request, "Auto-update status toggled successfully.")
             return redirect('coach_dashboard')
         except Exception as e:
             messages.error(request, "An error occurred while toggling auto updates.")
-            return redirect('coach_dashboard')
+            return redirect('coach_dashboard')  # Ensure redirection to coach_dashboard
     else:
         messages.error(request, "You are not authorized to change this setting.")
         return redirect('event_search', date=date.today())
