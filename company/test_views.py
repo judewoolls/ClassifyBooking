@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 from company.models import Company, Coach, Token
-from company.forms import CreateCompanyForm
+from company.forms import CreateCompanyForm, ChangeCompanyDetailsForm
 
 class CompanyDashboardViewTest(TestCase):
     def setUp(self):
@@ -60,3 +60,74 @@ class CompanyDashboardViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'company/create_company.html')
         self.assertIsInstance(response.context['create_form'], CreateCompanyForm)
+
+class ChangeCompanyDetailsViewTest(TestCase):
+    def setUp(self):
+        # Create a user and their profile
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+
+        # Create a company and associate it with the user
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+        self.user.profile.company = self.company
+        self.user.profile.save()
+
+        # URL for the change company details view
+        self.url = reverse('change_company_details')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_get_change_company_details_form(self):
+        """Test that the form is displayed for authenticated users."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/change_company_details.html')
+        self.assertIsInstance(response.context['form'], ChangeCompanyDetailsForm)
+        self.assertEqual(response.context['form'].instance, self.company)
+
+    def test_post_valid_change_company_details_form(self):
+        """Test that valid form submission updates the company details."""
+        self.client.login(username='testuser', password='testpass')
+        form_data = {
+            'name': 'Updated Company Name',
+            'address': '123 Test Street',
+            'city': 'Test City',
+            'postcode': '12345',
+            'phone_number': '1234567890',
+            'email': 'testcompany@example.com',
+            'website': 'https://www.testcompany.com',
+        }
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the company details were updated
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.name, 'Updated Company Name')
+        self.assertEqual(self.company.address, '123 Test Street')
+        self.assertEqual(self.company.city, 'Test City')
+        self.assertEqual(self.company.postcode, '12345')
+        self.assertEqual(self.company.phone_number, '1234567890')
+        self.assertEqual(self.company.email, 'testcompany@example.com')
+        self.assertEqual(self.company.website, 'https://www.testcompany.com')
+
+    def test_post_invalid_change_company_details_form(self):
+        """Test that invalid form submission does not update the company details."""
+        self.client.login(username='testuser', password='testpass')
+        form_data = {
+            'name': '',  # Invalid data (empty name)
+        }
+        response = self.client.post(self.url, data=form_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/change_company_details.html')
+        self.assertContains(response, 'Form is not Valid')
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.name, 'Test Company')  # Ensure the name is unchanged
