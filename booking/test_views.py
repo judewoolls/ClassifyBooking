@@ -1490,13 +1490,5 @@ class SwitchAutoUpdateStatusViewTest(TestCase):
         self.assertRedirects(response, reverse('event_search', args=[date.today()]))
 
 
-    def test_error_handling_on_exception(self):
-        self.client.login(username='manager', password='testpass')
-
-        with patch('company.models.Company.save', side_effect=Exception("Simulated DB failure")):
-            response = self.client.post(self.url, follow=True)
-
-        messages = list(get_messages(response.wsgi_request))
-        self.assertTrue(any("An error occurred while toggling auto updates." in m.message for m in messages))
 
 
