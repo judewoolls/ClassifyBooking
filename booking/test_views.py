@@ -10,7 +10,7 @@ from unittest.mock import patch
 from company.models import Coach, Company, Venue, Token, UserProfile
 from booking.models import Event, Booking, Day, TemplateEvent
 
-from booking.forms import EventForm, TemplateEventForm
+from booking.forms import EventForm, TemplateEventForm, BulkDeleteEventsForm
 
 
 class EventDetailViewTest(TestCase):
@@ -1277,3 +1277,149 @@ class GenerateScheduleViewTest(TestCase):
 
         # Ensure the mock was called with the correct company
         mock_generate_schedule.assert_called_once_with(self.company)
+
+
+
+class DeleteFutureEventsViewTest(TestCase):
+    def setUp(self):
+        # Create user, company, coach, and venue
+        self.user = User.objects.create_user(username='coachuser', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+        self.coach = Coach.objects.create(coach=self.user, company=self.company)
+        self.venue = Venue.objects.create(name="Main Hall", company=self.company)
+
+        # Create future events
+        self.event1 = Event.objects.create(
+            event_name="Future Event 1",
+            date_of_event=date.today() + timedelta(days=1),
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            venue=self.venue,
+            status=0,  # Future event
+            description="Test Description",
+            capacity=10,
+            coach=self.coach,
+        )
+        self.event2 = Event.objects.create(
+            event_name="Future Event 2",
+            date_of_event=date.today() + timedelta(days=2),
+            start_time=time(12, 0),
+            end_time=time(13, 0),
+            venue=self.venue,
+            status=0,  # Future event
+            description="Test Description",
+            capacity=10,
+            coach=self.coach,
+        )
+
+        # URL for the view
+        self.url = reverse("delete_future_events")
+
+    def test_login_required(self):
+        """Test that the view requires login."""
+        response = self.client.get(self.url)
+        login_url = reverse("account_login")
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_get_request_renders_form(self):
+        """Test that a GET request renders the form."""
+        self.client.login(username="coachuser", password="testpass")
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/delete_events.html")
+        self.assertIsInstance(response.context["form"], BulkDeleteEventsForm)
+
+    def test_post_valid_form_deletes_events(self):
+        """Test that a valid POST request deletes future events."""
+        self.client.login(username="coachuser", password="testpass")
+        data = {
+            "start_date": date.today().strftime("%Y-%m-%d"),
+            "end_date": (date.today() + timedelta(days=2)).strftime("%Y-%m-%d"),
+        }
+        response = self.client.post(self.url, data, follow=True)
+
+        self.assertRedirects(response, reverse("coach_dashboard"))
+        self.assertEqual(Event.objects.count(), 0)  # All events should be deleted
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("2 future event(s) deleted." in m.message for m in messages))
+
+    def test_post_valid_form_no_events_to_delete(self):
+        """Test that a valid POST request with no events to delete shows a success message."""
+        self.client.login(username="coachuser", password="testpass")
+        Event.objects.all().delete()  # Remove all events
+        data = {
+            "start_date": date.today().strftime("%Y-%m-%d"),
+            "end_date": (date.today() + timedelta(days=2)).strftime("%Y-%m-%d"),
+        }
+        response = self.client.post(self.url, data, follow=True)
+
+        self.assertRedirects(response, reverse("coach_dashboard"))
+        self.assertEqual(Event.objects.count(), 0)  # No events should exist
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("0 future event(s) deleted." in m.message for m in messages))
+
+    def test_post_invalid_form_shows_form_errors(self):
+        """Test that an invalid POST request shows form errors."""
+        self.client.login(username="coachuser", password="testpass")
+        data = {
+            "start_date": "",  # Missing start date
+            "end_date": (date.today() + timedelta(days=2)).strftime("%Y-%m-%d"),
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "booking/delete_events.html")
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+
+    def test_post_start_date_after_end_date(self):
+        """Test that a start date after the end date shows an error."""
+        self.client.login(username="coachuser", password="testpass")
+        data = {
+            "start_date": (date.today() + timedelta(days=2)).strftime("%Y-%m-%d"),
+            "end_date": date.today().strftime("%Y-%m-%d"),
+        }
+        response = self.client.post(self.url, data)
+
+        # Ensure the response status code is 200 (form re-rendered with errors)
+        self.assertEqual(response.status_code, 200)
+
+        # Ensure the correct template is used
+        self.assertTemplateUsed(response, "booking/delete_events.html")
+
+        # Check for the error message in the response
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("Start date must be before the end date." in m.message for m in messages))
+
+        # Ensure no events were deleted
+        self.assertEqual(Event.objects.count(), 2)  # Assuming 2 future events were set up in `setUp`
+
+    def test_post_only_deletes_future_events(self):
+        """Test that only future events are deleted."""
+        self.client.login(username="coachuser", password="testpass")
+
+        # Create a past event
+        Event.objects.create(
+            event_name="Past Event",
+            date_of_event=date.today() - timedelta(days=1),
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            venue=self.venue,
+            status=1,  # Past event
+            description="Test Description",
+            capacity=10,
+            coach=self.coach,
+        )
+
+        data = {
+            "start_date": date.today().strftime("%Y-%m-%d"),
+            "end_date": (date.today() + timedelta(days=2)).strftime("%Y-%m-%d"),
+        }
+        response = self.client.post(self.url, data, follow=True)
+
+        self.assertRedirects(response, reverse("coach_dashboard"))
+        self.assertEqual(Event.objects.count(), 1)  # Only the past event should remain
+        self.assertTrue(Event.objects.filter(event_name="Past Event").exists())
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("2 future event(s) deleted." in m.message for m in messages))

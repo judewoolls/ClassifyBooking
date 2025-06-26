@@ -512,6 +512,10 @@ def delete_future_events(request):
             start = form.cleaned_data["start_date"]
             end = form.cleaned_data["end_date"]
 
+            if start > end:
+                messages.error(request, "Start date must be before the end date.")
+                return render(request, "booking/delete_events.html", {"form": form})
+
             deleted, _ = Event.objects.filter(
                 date_of_event__range=(start, end),
                 status=0  # Future events only
