@@ -4,9 +4,11 @@ from logbook.models import Score, Exercise
 from django.contrib.auth.models import User
 from .forms import LeaderboardFilterForm
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 
 
 # Home page view
+@login_required
 def home(request):
     # Get the current user
     user = request.user
