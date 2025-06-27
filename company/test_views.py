@@ -715,3 +715,52 @@ class ManageVenuesViewTest(TestCase):
         self.assertRedirects(response, reverse('company_dashboard'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))
+
+
+class ViewVenueViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a venue for the company
+        self.venue = Venue.objects.create(
+            name="Test Venue",
+            address="123 Venue St",
+            city="Test City",
+            postcode="12345",
+            company=self.company
+        )
+
+        # URL for the view venue view
+        self.url = reverse('view_venue', args=[self.venue.venue_id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_view_venue_valid(self):
+        """Test that the view displays venue details when the venue exists."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_venue.html')
+        self.assertEqual(response.context['venue'], self.venue)
+        self.assertEqual(response.context['company'], self.company)
+        self.assertContains(response, 'Test Venue')
+        self.assertContains(response, '123 Venue St')
+
+    def test_view_venue_invalid(self):
+        """Test that the view redirects with an error message when the venue does not exist."""
+        self.client.login(username='manager', password='testpass')
+        invalid_url = reverse('view_venue', args=[999])  # Non-existent venue ID
+        response = self.client.get(invalid_url)
+
+        self.assertRedirects(response, reverse('manage_venues'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Venue not found or does not belong to your company.' in str(m) for m in messages))
