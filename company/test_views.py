@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from company.models import Company, Coach, Token, Venue
 from django.contrib.messages import get_messages
-from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm
+from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm
 
 class ViewClientsViewTest(TestCase):
     def setUp(self):
@@ -950,6 +950,111 @@ class RemoveVenueViewTest(TestCase):
 
         # Check that the venue still exists
         self.assertTrue(Venue.objects.filter(venue_id=other_venue.venue_id).exists())
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Venue not found or does not belong to your company.' in str(m) for m in messages))
+
+
+class EditVenueViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a venue for the company
+        self.venue = Venue.objects.create(
+            name="Test Venue",
+            address="123 Venue St",
+            city="Test City",
+            postcode="12345",
+            company=self.company
+        )
+
+        # URL for the edit venue view
+        self.url = reverse('edit_venue', args=[self.venue.venue_id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_get_edit_venue_form(self):
+        """Test that the edit venue form is displayed for authenticated users."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/edit_venue.html')
+        self.assertIsInstance(response.context['form'], EditVenueForm)
+        self.assertEqual(response.context['venue'], self.venue)
+
+    def test_post_valid_edit_venue_form(self):
+        """Test that a valid form submission updates the venue."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {
+            'name': 'Updated Venue',
+            'address': '456 Updated St',
+            'city': 'Updated City',
+            'postcode': '67890',
+        }
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('manage_venues'))
+
+        # Verify the venue was updated
+        self.venue.refresh_from_db()
+        self.assertEqual(self.venue.name, 'Updated Venue')
+        self.assertEqual(self.venue.address, '456 Updated St')
+        self.assertEqual(self.venue.city, 'Updated City')
+        self.assertEqual(self.venue.postcode, '67890')
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Venue updated successfully.' in str(m) for m in messages))
+
+    def test_post_invalid_edit_venue_form(self):
+        """Test that an invalid form submission does not update the venue."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {
+            'name': '',  # Invalid data (empty name)
+            'address': '456 Updated St',
+            'city': 'Updated City',
+            'postcode': '67890',
+        }
+        response = self.client.post(self.url, data=form_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/edit_venue.html')
+
+        # Verify the venue was not updated
+        self.venue.refresh_from_db()
+        self.assertNotEqual(self.venue.name, '')  # Ensure the name was not updated to an empty string
+
+        # Check for the error message
+        self.assertContains(response, 'Form is invalid. Please correct the errors.')
+
+    def test_edit_venue_not_in_company(self):
+        """Test that a venue not belonging to the user's company cannot be edited."""
+        other_company = Company.objects.create(name="Other Company", manager=self.manager_user)
+        other_venue = Venue.objects.create(
+            name="Other Venue",
+            address="789 Other St",
+            city="Other City",
+            postcode="54321",
+            company=other_company
+        )
+
+        self.client.login(username='manager', password='testpass')
+        url = reverse('edit_venue', args=[other_venue.venue_id])
+        response = self.client.get(url)
+
+        self.assertRedirects(response, reverse('manage_venues'))
 
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
