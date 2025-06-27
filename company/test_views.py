@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
-from company.models import Company, Coach, Token, Venue
+from company.models import Company, Coach, Token, Venue, RefundRequest
 from django.contrib.messages import get_messages
 from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm
 from django.db.models import Case, When, IntegerField
@@ -1200,3 +1200,80 @@ class PurchaseTokensViewTest(TestCase):
         self.assertRedirects(response, reverse('company_dashboard'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))
+
+
+class RefundTokenViewTest(TestCase):
+    def setUp(self):
+        # Create a user and their company
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+        self.user.profile.company = self.company
+        self.user.profile.save()
+
+        # Create a token for the user
+        self.token = Token.objects.create(user=self.user, company=self.company, used=False, refunded=False)
+
+        # URL for the refund token view
+        self.url = reverse('refund_token', args=[self.token.id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_refund_token_successfully(self):
+        """Test that a token is marked for refund successfully."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the token was updated
+        self.token.refresh_from_db()
+        self.assertTrue(self.token.used)
+        self.assertTrue(self.token.refunded)
+
+        # Verify the refund request was created
+        refund_request = RefundRequest.objects.filter(user=self.user, token=self.token).first()
+        self.assertIsNotNone(refund_request)
+        self.assertEqual(refund_request.status, 'Pending')
+        self.assertIsNone(refund_request.reviewed_by)
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Token marked for refund successfully and refund request has been sent' in str(m) for m in messages))
+
+    def test_refund_token_invalid(self):
+        """Test that an invalid token cannot be refunded."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Use an invalid token ID
+        invalid_url = reverse('refund_token', args=[999])  # Non-existent token ID
+        response = self.client.post(invalid_url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
+
+    def test_refund_token_already_used_or_refunded(self):
+        """Test that a token already used or refunded cannot be marked for refund."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Mark the token as used and refunded
+        self.token.used = True
+        self.token.refunded = True
+        self.token.save()
+
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
