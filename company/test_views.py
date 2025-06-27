@@ -1277,3 +1277,101 @@ class RefundTokenViewTest(TestCase):
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
+
+
+class RefundClientTokenViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a client user
+        self.client_user = User.objects.create_user(username='client', password='testpass')
+        self.client_user.profile.company = self.company
+        self.client_user.profile.save()
+
+        # Create a token for the client
+        self.token = Token.objects.create(user=self.client_user, company=self.company, used=False, refunded=False)
+
+        # URL for the refund client token view
+        self.url = reverse('refund_client_token', args=[self.token.id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_refund_client_token_successfully(self):
+        """Test that a manager can refund a client's token successfully."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_clients'))
+
+        # Verify the token was updated
+        self.token.refresh_from_db()
+        self.assertTrue(self.token.used)
+        self.assertTrue(self.token.refunded)
+
+        # Verify the refund request was created or updated
+        refund_request = RefundRequest.objects.filter(user=self.client_user, token=self.token).first()
+        self.assertIsNotNone(refund_request)
+        self.assertEqual(refund_request.status, 'Approved')
+        self.assertEqual(refund_request.reviewed_by, self.manager_user)
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Token refund request approved successfully.' in str(m) for m in messages))
+
+    def test_refund_client_token_no_permission(self):
+        """Test that a manager cannot refund a token they do not have permission to refund."""
+        other_company = Company.objects.create(name="Other Company", manager=self.manager_user)
+        other_token = Token.objects.create(user=self.client_user, company=other_company, used=False, refunded=False)
+
+        self.client.login(username='manager', password='testpass')
+        url = reverse('refund_client_token', args=[other_token.id])
+        response = self.client.post(url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_client_tokens', args=[self.client_user.id]))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You do not have permission to refund this token.' in str(m) for m in messages))
+
+    def test_refund_client_token_invalid(self):
+        """Test that an invalid token cannot be refunded."""
+        self.client.login(username='manager', password='testpass')
+
+        # Use an invalid token ID
+        invalid_url = reverse('refund_client_token', args=[999])  # Non-existent token ID
+        response = self.client.post(invalid_url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_clients'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
+
+    def test_refund_client_token_already_used_or_refunded(self):
+        """Test that a token already used or refunded cannot be refunded again."""
+        self.client.login(username='manager', password='testpass')
+
+        # Mark the token as used and refunded
+        self.token.used = True
+        self.token.refunded = True
+        self.token.save()
+
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_clients'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
