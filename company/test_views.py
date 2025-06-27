@@ -842,3 +842,115 @@ class AddVenueViewTest(TestCase):
         self.assertRedirects(response, reverse('company_dashboard'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))
+
+
+class RemoveVenueViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a venue for the company
+        self.venue = Venue.objects.create(
+            name="Test Venue",
+            address="123 Venue St",
+            city="Test City",
+            postcode="12345",
+            company=self.company
+        )
+
+        # Create a coach user and associate it with the company
+        self.coach_user = User.objects.create_user(username='coach', password='testpass')
+        self.coach = Coach.objects.create(coach=self.coach_user, company=self.company)
+
+        # Create events and bookings associated with the venue
+        self.event1 = Event.objects.create(
+            event_name="Event 1",
+            coach=self.coach,
+            date_of_event="2025-07-01",
+            capacity=10,
+            description="Test Event 1",
+            start_time="10:00:00",
+            end_time="12:00:00",
+            venue=self.venue,
+            status=0
+        )
+        self.event2 = Event.objects.create(
+            event_name="Event 2",
+            coach=self.coach,
+            date_of_event="2025-07-02",
+            capacity=20,
+            description="Test Event 2",
+            start_time="14:00:00",
+            end_time="16:00:00",
+            venue=self.venue,
+            status=0
+        )
+        Booking.objects.create(event=self.event1, user=self.manager_user)
+        Booking.objects.create(event=self.event2, user=self.manager_user)
+
+        # URL for the remove venue view
+        self.url = reverse('remove_venue', args=[self.venue.venue_id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_remove_venue_valid(self):
+        """Test that a venue is removed successfully along with its events and bookings."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, reverse('manage_venues'))
+
+        # Check that the venue, events, and bookings are deleted
+        self.assertFalse(Venue.objects.filter(venue_id=self.venue.venue_id).exists())
+        self.assertFalse(Event.objects.filter(venue=self.venue).exists())
+        self.assertFalse(Booking.objects.filter(event__venue=self.venue).exists())
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any(
+            f'Venue "{self.venue.name}" removed. 2 events and 2 bookings were deleted.' in str(m)
+            for m in messages
+        ))
+
+    def test_remove_venue_invalid(self):
+        """Test that attempting to remove a non-existent venue shows an error message."""
+        self.client.login(username='manager', password='testpass')
+        invalid_url = reverse('remove_venue', args=[999])  # Non-existent venue ID
+        response = self.client.post(invalid_url)
+
+        self.assertRedirects(response, reverse('manage_venues'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Venue not found or does not belong to your company.' in str(m) for m in messages))
+
+    def test_remove_venue_not_in_company(self):
+        """Test that a venue not belonging to the user's company cannot be removed."""
+        other_company = Company.objects.create(name="Other Company", manager=self.manager_user)
+        other_venue = Venue.objects.create(
+            name="Other Venue",
+            address="456 Other St",
+            city="Other City",
+            postcode="67890",
+            company=other_company
+        )
+
+        self.client.login(username='manager', password='testpass')
+        url = reverse('remove_venue', args=[other_venue.venue_id])
+        response = self.client.post(url)
+
+        self.assertRedirects(response, reverse('manage_venues'))
+
+        # Check that the venue still exists
+        self.assertTrue(Venue.objects.filter(venue_id=other_venue.venue_id).exists())
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Venue not found or does not belong to your company.' in str(m) for m in messages))
