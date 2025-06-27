@@ -641,3 +641,77 @@ class ViewBookingsViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'company/view_bookings.html')
         self.assertContains(response, 'No bookings found for your company.')
+
+
+
+class ManageVenuesViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create some venues for the company
+        self.venue1 = Venue.objects.create(
+            name="Venue 1",
+            address="123 Venue St",
+            city="Test City",
+            postcode="12345",
+            company=self.company
+        )
+        self.venue2 = Venue.objects.create(
+            name="Venue 2",
+            address="456 Venue Ave",
+            city="Another City",
+            postcode="67890",
+            company=self.company
+        )
+
+        # URL for the manage venues view
+        self.url = reverse('manage_venues')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_manage_venues_with_venues(self):
+        """Test that the view displays venues when they exist."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/manage_venues.html')
+        self.assertEqual(response.context['company'], self.company)
+        self.assertQuerysetEqual(
+            response.context['venues'].order_by('venue_id'),  # Explicitly order the queryset from the context
+            Venue.objects.filter(company=self.company).order_by('venue_id'),  # Explicitly order the queryset from the database
+            transform=lambda x: x
+        )
+        self.assertContains(response, f'Found 2 venues for your company.')
+        self.assertContains(response, 'Venue 1')
+        self.assertContains(response, 'Venue 2')
+
+    def test_manage_venues_no_venues(self):
+        """Test that the view displays a message when no venues exist."""
+        Venue.objects.filter(company=self.company).delete()
+
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/manage_venues.html')
+        self.assertContains(response, 'Found 0 venues for your company.')
+
+    def test_manage_venues_no_company(self):
+        """Test that the view redirects with an error message if the user has no company."""
+        user_without_company = User.objects.create_user(username='nocompanyuser', password='testpass')
+        self.client.login(username='nocompanyuser', password='testpass')
+
+        response = self.client.get(self.url)
+
+        self.assertRedirects(response, reverse('company_dashboard'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))

@@ -215,9 +215,7 @@ def manage_venues(request):
     except AttributeError:
         messages.error(request, 'You do not have a company associated with your profile.')
         return redirect('company_dashboard')
-    # except Exception as e:
-    #     messages.error(request, f'An error occurred while fetching venues: {str(e)}')
-    #     return redirect('company_dashboard')
+
     
 @login_required
 def view_venue(request, venue_id):
