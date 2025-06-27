@@ -500,3 +500,67 @@ class RemoveClientViewTest(TestCase):
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Client not found or does not belong to your company.' in str(m) for m in messages))
+
+
+class ViewClientTokensViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a client user
+        self.client_user = User.objects.create_user(username='client', password='testpass')
+        self.client_user.profile.company = self.company
+        self.client_user.profile.save()
+
+        # Create tokens for the client
+        self.token1 = Token.objects.create(user=self.client_user, company=self.company, refunded=False, used=False)
+        self.token2 = Token.objects.create(user=self.client_user, company=self.company, refunded=True, used=False)
+
+        # URL for the view client tokens view
+        self.url = reverse('view_client_tokens', args=[self.client_user.id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_view_client_tokens_with_tokens(self):
+        """Test that the view displays tokens when they exist."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_client_tokens.html')
+        self.assertEqual(response.context['client'], self.client_user)
+        self.assertEqual(response.context['company'], self.company)
+        self.assertQuerysetEqual(
+            response.context['tokens'],
+            Token.objects.filter(user=self.client_user, company=self.company).order_by('-purchased_on'),
+            transform=lambda x: x
+        )
+        self.assertContains(response, f'Found 2 tokens for client {self.client_user.username}.')
+
+    def test_view_client_tokens_no_tokens(self):
+        """Test that the view displays a message when no tokens exist."""
+        Token.objects.filter(user=self.client_user, company=self.company).delete()
+
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_client_tokens.html')
+        self.assertContains(response, f'No tokens found for client {self.client_user.username}.')
+
+    def test_view_client_tokens_invalid_client(self):
+        """Test that the view redirects with an error message when the client does not exist."""
+        self.client.login(username='manager', password='testpass')
+        invalid_url = reverse('view_client_tokens', args=[999])  # Non-existent client ID
+        response = self.client.get(invalid_url)
+
+        self.assertRedirects(response, reverse('view_clients'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Client not found or does not belong to your company.' in str(m) for m in messages))
