@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from company.models import Company, Coach, Token, Venue
 from django.contrib.messages import get_messages
-from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm
+from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm
 
 class ViewClientsViewTest(TestCase):
     def setUp(self):
@@ -764,3 +764,81 @@ class ViewVenueViewTest(TestCase):
         self.assertRedirects(response, reverse('manage_venues'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Venue not found or does not belong to your company.' in str(m) for m in messages))
+
+
+class AddVenueViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # URL for the add venue view
+        self.url = reverse('add_venue')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_get_add_venue_form(self):
+        """Test that the add venue form is displayed for authenticated users."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/add_venue.html')
+        self.assertIsInstance(response.context['form'], AddVenueForm)
+
+    def test_post_valid_add_venue_form(self):
+        """Test that a valid form submission adds a new venue."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {
+            'name': 'New Venue',
+            'address': '123 Venue St',
+            'city': 'Test City',
+            'postcode': '12345',
+        }
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('manage_venues'))
+
+        # Verify the venue was added
+        self.assertTrue(Venue.objects.filter(name='New Venue', company=self.company).exists())
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Venue added successfully.' in str(m) for m in messages))
+
+    def test_post_invalid_add_venue_form(self):
+        """Test that an invalid form submission does not add a venue."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {
+            'name': '',  # Invalid data (empty name)
+            'address': '123 Venue St',
+            'city': 'Test City',
+            'postcode': '12345',
+        }
+        response = self.client.post(self.url, data=form_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/add_venue.html')
+        self.assertFalse(Venue.objects.filter(company=self.company).exists())
+
+        # Check for the error message
+        self.assertContains(response, 'Form is invalid. Please correct the errors.')
+
+    def test_add_venue_no_company(self):
+        """Test that a user without a company cannot add a venue."""
+        user_without_company = User.objects.create_user(username='nocompanyuser', password='testpass')
+        self.client.login(username='nocompanyuser', password='testpass')
+
+        response = self.client.get(self.url)
+
+        self.assertRedirects(response, reverse('company_dashboard'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))
