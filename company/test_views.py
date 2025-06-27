@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from company.models import Company, Coach, Token, Venue
 from django.contrib.messages import get_messages
-from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm
+from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm
 from django.db.models import Case, When, IntegerField
 
 class ViewClientsViewTest(TestCase):
@@ -1119,3 +1119,84 @@ class ViewTokensViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'company/view_tokens.html')
         self.assertContains(response, 'No tokens found for your account.')
+
+
+class PurchaseTokensViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.token_count = 0
+        self.manager_user.profile.save()
+
+        # URL for the purchase tokens view
+        self.url = reverse('purchase_tokens')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_get_purchase_tokens_form(self):
+        """Test that the purchase tokens form is displayed for authenticated users."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/purchase_tokens.html')
+        self.assertIsInstance(response.context['form'], PurchaseTokenForm)
+
+    def test_post_valid_purchase_tokens_form(self):
+        """Test that a valid form submission purchases tokens."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {'token_count': 5}
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the tokens were created
+        self.assertEqual(Token.objects.filter(user=self.manager_user, company=self.company).count(), 5)
+
+        # Verify the token count in the user's profile
+        self.manager_user.profile.refresh_from_db()
+        self.assertEqual(self.manager_user.profile.token_count, 5)
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('5 tokens purchased successfully.' in str(m) for m in messages))
+
+    def test_post_invalid_purchase_tokens_form(self):
+        """Test that an invalid form submission does not purchase tokens."""
+        self.client.login(username='manager', password='testpass')
+        form_data = {'token_count': 0}  # Invalid data (less than the minimum)
+        response = self.client.post(self.url, data=form_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/purchase_tokens.html')
+
+        # Verify no tokens were created
+        self.assertEqual(Token.objects.filter(user=self.manager_user, company=self.company).count(), 0)
+
+        # Verify the token count in the user's profile remains unchanged
+        self.manager_user.profile.refresh_from_db()
+        self.assertEqual(self.manager_user.profile.token_count, 0)
+
+        # Check for the correct error message
+        self.assertContains(response, 'Ensure this value is greater than or equal to 1.')  # Update to match the actual error message
+
+    def test_purchase_tokens_no_company(self):
+        """Test that a user without a company cannot purchase tokens."""
+        user_without_company = User.objects.create_user(username='nocompanyuser', password='testpass')
+        user_without_company.profile.company = None  # Ensure the user has no company
+        user_without_company.profile.save()
+
+        self.client.login(username='nocompanyuser', password='testpass')
+        response = self.client.post(self.url)  # Use POST to trigger the logic
+
+        self.assertRedirects(response, reverse('company_dashboard'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))

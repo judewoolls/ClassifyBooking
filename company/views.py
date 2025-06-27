@@ -321,6 +321,9 @@ def view_tokens(request):
 @login_required
 def purchase_tokens(request):
     if request.method == 'POST':
+        if not request.user.profile.company:
+            messages.error(request, 'You do not have a company associated with your profile.')
+            return redirect('company_dashboard')
         form = PurchaseTokenForm(request.POST, user=request.user)  # Pass the user to the form
         if form.is_valid():
             token_count = form.cleaned_data['token_count']
