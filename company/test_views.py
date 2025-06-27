@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
-from company.models import Company, Coach, Token
+from company.models import Company, Coach, Token, Venue
 from django.contrib.messages import get_messages
 from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm
 
@@ -564,3 +564,80 @@ class ViewClientTokensViewTest(TestCase):
         self.assertRedirects(response, reverse('view_clients'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Client not found or does not belong to your company.' in str(m) for m in messages))
+
+
+from booking.models import Booking, Event
+
+class ViewBookingsViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a coach user
+        self.coach_user = User.objects.create_user(username='coach', password='testpass')
+        self.coach_user.profile.company = self.company
+        self.coach = Coach.objects.create(coach=self.coach_user, company=self.company)
+        self.coach_user.profile.save()
+        Coach.objects.create(coach=self.coach_user, company=self.company)
+
+        # Create a venue for the event
+        self.venue = Venue.objects.create(
+            name="Test Venue",
+            address="123 Venue St",
+            city="Test City",
+            postcode="12345",
+            company=self.company
+        )
+
+        # Create an event and bookings
+        self.event = Event.objects.create(
+            event_name="Test Event",
+            coach=self.coach,
+            date_of_event="2025-07-01",
+            capacity=10,
+            description="This is a test event.",
+            start_time="10:00:00",
+            end_time="12:00:00",
+            venue=self.venue,
+            status=0
+        )
+        self.booking1 = Booking.objects.create(event=self.event, user=self.manager_user)
+        self.booking2 = Booking.objects.create(event=self.event, user=self.coach_user)
+
+        # URL for the view bookings view
+        self.url = reverse('view_bookings')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_view_bookings_with_bookings(self):
+        """Test that the view displays bookings when they exist."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_bookings.html')
+        self.assertEqual(response.context['company'], self.company)
+        self.assertQuerysetEqual(
+            response.context['bookings'],
+            Booking.objects.filter(event__coach__company=self.company).order_by('-event__date_of_event'),
+            transform=lambda x: x
+        )
+        self.assertContains(response, f'Found 2 bookings for your company.')
+
+    def test_view_bookings_no_bookings(self):
+        """Test that the view displays a message when no bookings exist."""
+        Booking.objects.all().delete()
+
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_bookings.html')
+        self.assertContains(response, 'No bookings found for your company.')
