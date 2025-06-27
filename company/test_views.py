@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from company.models import Company, Coach, Token, Venue
 from django.contrib.messages import get_messages
 from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm
+from django.db.models import Case, When, IntegerField
 
 class ViewClientsViewTest(TestCase):
     def setUp(self):
@@ -1059,3 +1060,62 @@ class EditVenueViewTest(TestCase):
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Venue not found or does not belong to your company.' in str(m) for m in messages))
+
+
+class ViewTokensViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create tokens for the manager
+        self.token1 = Token.objects.create(user=self.manager_user, company=self.company, refunded=False, used=False)
+        self.token2 = Token.objects.create(user=self.manager_user, company=self.company, refunded=True, used=False)
+
+        # URL for the view tokens view
+        self.url = reverse('view_tokens')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_view_tokens_with_tokens(self):
+        """Test that the view displays tokens when they exist."""
+        self.client.login(username='manager', password='testpass')
+
+        # Replicate the annotation logic from the view
+        tokens = Token.objects.filter(user=self.manager_user, company=self.company).annotate(
+            refunded_priority=Case(
+                When(refunded=False, then=1),
+                When(refunded=True, then=2),
+                default=3,
+                output_field=IntegerField()
+            )
+        ).order_by('refunded_priority', '-purchased_on')
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_tokens.html')
+        self.assertEqual(response.context['company'], self.company)
+        self.assertQuerysetEqual(
+            response.context['tokens'],
+            tokens,
+            transform=lambda x: x
+        )
+        self.assertContains(response, f'Found 2 tokens for your account.')
+
+    def test_view_tokens_no_tokens(self):
+        """Test that the view displays a message when no tokens exist."""
+        Token.objects.filter(user=self.manager_user, company=self.company).delete()
+
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_tokens.html')
+        self.assertContains(response, 'No tokens found for your account.')
