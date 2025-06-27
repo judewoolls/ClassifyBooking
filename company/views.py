@@ -149,7 +149,7 @@ def remove_client(request, client_id):
             if tokens.exists():
                 messages.error(request, 'Cannot remove client with active tokens. Please refund or use the tokens first.')
                 return redirect('view_clients')
-            if client.profile.company == request.user.profile.company:
+            if client.profile.company == request.user.profile.company and request.user.profile.company.manager == request.user:
                 if Coach.objects.filter(coach=client, company=request.user.profile.company).exists():
                     messages.error(request, 'The selected client is also a coach and cannot be removed as a client.')
                     return redirect('view_clients')

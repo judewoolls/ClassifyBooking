@@ -1,7 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
-from company.models import Company, Coach
+from django.contrib.auth import get_user_model
+from company.models import Company, Coach, Token
 from django.contrib.messages import get_messages
 from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm
 
@@ -400,3 +401,102 @@ class ClientDetailsViewTest(TestCase):
         self.assertRedirects(response, reverse('view_clients'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Invalid request method.' in str(m) for m in messages))
+
+
+
+class RemoveClientViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a client user
+        self.client_user = User.objects.create_user(username='client', password='testpass')
+        self.client_user.profile.company = self.company
+        self.client_user.profile.save()
+
+        # URL for the remove client view
+        self.url = reverse('remove_client', args=[self.client_user.id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_remove_client_with_no_tokens(self):
+        """Test that a client is removed successfully when they have no active tokens."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, reverse('view_clients'))
+        self.client_user.refresh_from_db()
+        self.assertIsNone(self.client_user.profile.company)  # Client should no longer belong to the company
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any(f'Client {self.client_user.username} removed successfully.' in str(m) for m in messages))
+
+    def test_remove_client_with_active_tokens(self):
+        """Test that a client with active tokens cannot be removed."""
+        self.client.login(username='manager', password='testpass')
+        Token.objects.create(user=self.client_user, company=self.company, refunded=False, used=False)
+
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, reverse('view_clients'))
+        self.client_user.refresh_from_db()
+        self.assertEqual(self.client_user.profile.company, self.company)  # Client should still belong to the company
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Cannot remove client with active tokens.' in str(m) for m in messages))
+
+    def test_remove_client_who_is_a_coach(self):
+        """Test that a client who is also a coach cannot be removed."""
+        self.client.login(username='manager', password='testpass')
+        Coach.objects.create(coach=self.client_user, company=self.company)
+
+        response = self.client.post(self.url)
+
+        self.assertRedirects(response, reverse('view_clients'))
+        self.client_user.refresh_from_db()
+        self.assertEqual(self.client_user.profile.company, self.company)  # Client should still belong to the company
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('The selected client is also a coach and cannot be removed as a client.' in str(m) for m in messages))
+
+    def test_remove_client_not_in_company(self):
+        """Test that a client not in the company cannot be removed."""
+        self.client.login(username='manager', password='testpass')
+        other_client = User.objects.create_user(username='other_client', password='testpass')
+
+        url = reverse('remove_client', args=[other_client.id])
+        response = self.client.post(url)
+
+        self.assertRedirects(response, reverse('view_clients'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Client not found or does not belong to your company.' in str(m) for m in messages))
+
+    def test_remove_client_permission_denied(self):
+        """Test that a manager cannot remove a client they do not have permission to remove."""
+        self.client.login(username='manager', password='testpass')
+        other_company = Company.objects.create(name="Other Company", manager=self.manager_user)
+        other_client = User.objects.create_user(username='other_client', password='testpass')
+        other_client.profile.company = other_company
+        other_client.profile.save()
+
+        url = reverse('remove_client', args=[other_client.id])
+        response = self.client.post(url)
+
+        # Verify the redirection to the view clients page
+        self.assertRedirects(response, reverse('view_clients'))  # Updated to match actual behavior
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Client not found or does not belong to your company.' in str(m) for m in messages))
