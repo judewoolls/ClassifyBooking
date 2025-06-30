@@ -3,11 +3,11 @@
 
 {% block content %}
 <h2>Company Dashboard</h2>
-<h3>Your company {{ company.name }}</h3>
+<h3>Company: {{ company.name }}</h3>
 <div class="container">
     <div class="row">
         <div class="card col-12">
-            <h4 class="card-title">Client Details</h4>
+            <h4 class="card-title mt-4">Client Details</h4>
             <div class="card-body">
                 <p><strong>Username:</strong> {{ client.username }}</p>
                 <p><strong>Email:</strong> {{ client.email }}</p>
@@ -21,8 +21,8 @@
                     <button type="submit" class="btn btn-danger">Delete Client</button>
                 </form>
             </div>
-            <div class="card-footer">
-                <a href="{% url 'view_clients' %}" class="btn btn-secondary">Back to Clients</a>
+            <div>
+                <a href="{% url 'view_clients' %}" class="btn btn-secondary mb-4">Back to Clients</a>
             </div>
         </div>
     </div>
