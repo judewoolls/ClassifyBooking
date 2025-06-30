@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from company.models import Company, Coach, Token, Venue, RefundRequest
 from django.contrib.messages import get_messages
-from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm
+from company.forms import AddCoachForm, ChangeCompanyDetailsForm, CreateCompanyForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm, JoinCompanyForm
 from django.db.models import Case, When, IntegerField
 
 class ViewClientsViewTest(TestCase):
@@ -1644,3 +1644,86 @@ class DenyRefundRequestViewTest(TestCase):
             any('Refund request not found or does not belong to your company.' in str(m) for m in messages),
             f"Expected error message not found in: {[str(m) for m in messages]}"
         )
+        
+
+class JoinCompanyViewTest(TestCase):
+    def setUp(self):
+        # Create a user
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+
+        # Create some companies with managers
+        self.manager1 = User.objects.create_user(username='manager1', password='testpass')
+        self.manager2 = User.objects.create_user(username='manager2', password='testpass')
+        self.company1 = Company.objects.create(name="Company 1", manager=self.manager1)
+        self.company2 = Company.objects.create(name="Company 2", manager=self.manager2)
+
+        # URL for the join company view
+        self.url = reverse('join_company')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_post_valid_join_company_form(self):
+        """Test that a valid form submission associates the user with the selected company."""
+        self.client.login(username='testuser', password='testpass')
+        form_data = {'company': self.company1.company_id}  # Use the correct field: company_id
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the user's profile was updated
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.company, self.company1)
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any(f'You have successfully joined the company: {self.company1.name}.' in str(m) for m in messages))
+
+    def test_post_invalid_join_company_form(self):
+        """Test that an invalid form submission redirects to the dashboard without updating the user's profile."""
+        self.client.login(username='testuser', password='testpass')
+        form_data = {'company': ''}  # Invalid data
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the user's profile was not updated
+        self.user.profile.refresh_from_db()
+        self.assertIsNone(self.user.profile.company)
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Form is invalid. Please correct the errors.' in str(m) for m in messages))
+
+    def test_user_already_in_a_company(self):
+        """Test that a user already in a company cannot join another company."""
+        self.user.profile.company = self.company1
+        self.user.profile.save()
+
+        self.client.login(username='testuser', password='testpass')
+        form_data = {'company': self.company2.company_id}  # Attempt to join a different company
+        response = self.client.post(self.url, data=form_data)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Verify the user's profile was not updated
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.company, self.company1)  # Should still belong to the original company
+
+    def test_get_request_redirects_to_dashboard(self):
+        """Test that a GET request redirects to the dashboard."""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.get(self.url)
+
+        # Check for the redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('company_dashboard'))

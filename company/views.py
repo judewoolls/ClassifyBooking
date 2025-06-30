@@ -58,6 +58,8 @@ def join_company(request):
     if request.method == 'POST':
         form = JoinCompanyForm(request.POST)
         if form.is_valid():
+            if request.user.profile.company:
+                return redirect('company_dashboard')
             company = form.cleaned_data['company']
             request.user.profile.company = company
             request.user.profile.save()
@@ -68,7 +70,7 @@ def join_company(request):
     else:
         form = JoinCompanyForm()
 
-    return render(request, 'company/join_company.html', {'form': form})
+    return redirect('company_dashboard')
     
 @login_required
 def change_company_details(request):
