@@ -6,22 +6,22 @@
 <h3>Manager: {{ company.manager }}</h3>
 <div class="container">
     <div class="row">
-        <div class="col-12 col-md-6">
+        <div class="card col-12 col-md-6">
             <details class="company-info">
                 <summary>Company info</summary>
-                <p>Company Name: <strong>{{ company.name }}</strong></p>
+                <h5 class="mt-1"><strong>{{ company.name }}</strong></h5>
                 <p>Address: {{ company.address }}</p>
                 <p>City: {{ company.city }}</p>
                 <p>Postcode: {{ company.postcode }}</p>
                 <p>Email: {{ company.email}}</p>
                 <p>Contact Number: <a href="tel:+{{ company.phone_number }}" style="color: blue; text-decoration: underline;">{{ company.phone_number }}</a></p>
-                <p><a href="{{ company.website}}" style="color: blue; text-decoration: underline;">Visit company website</a></p>
+                <p class="card-footer"><a href="{{ company.website}}" style="color: blue; text-decoration: underline;">Visit company website</a></p>
             </details>
         </div>
-        <div class="col-12 col-md-6">
+        <div class="card col-12 col-md-6">
             <details>
                 <summary>Company forms</summary>
-                <div class="container" style="display: flex; flex-direction: column; gap: 10px;">
+                <div class="container mb-4" style="display: flex; flex-direction: column; gap: 10px;">
                     <a href="{% url 'change_company_details' %}" class="btn btn-success mt-2">Change Company information</a>
                     <a href="{% url 'manage_venues' %}" class="btn btn-success mt-2">Manage Venues</a>
                     <a href="{% url 'view_coaches' %}" class="btn btn-success mt-2">View all coaches</a>
