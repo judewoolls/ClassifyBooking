@@ -5,25 +5,27 @@
 <h2>Company Dashboard</h2>
 <h3>Your company {{ company.name }}</h3>
 <div class="container">
-    <div class="row">
-        <div class="card col-12">
-            <h4 class="card-title">Client Details</h4>
-            <div class="card-body">
+    <div class="row d-flex justify-content-center">
+        <div class="card col-11 border-secondary">
+            <h4 class="card-title mt-3">Venue Details</h4>
+            <div class="card-body d-flex flex-column justify-content-center">
                 <p><strong>Name:</strong> {{ venue.name }}</p>
                 <p><strong>Address:</strong> {{ venue.address }}</p>
                 <p><strong>Postcode</strong> {{ venue.postcode }}</p>
                 <p><strong>Company:</strong> {{ venue.company.name }}</p>
-                <form action="{% url 'edit_venue' venue.venue_id %}" method="get">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success">Edit Venue</button>
-                </form>
-                <form action="{% url 'remove_venue' venue.venue_id %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Delete Venue</button>
-                </form>
+                <div class="row d-flex justify-content-center">
+                    <form class="col-4" action="{% url 'edit_venue' venue.venue_id %}" method="get">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success">Edit</button>
+                    </form>
+                    <form class="col-4" action="{% url 'remove_venue' venue.venue_id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
             </div>
-            <div class="card-footer">
-                <a href="{% url 'manage_venues' %}" class="btn btn-secondary">Back to Venues</a>
+            <div>
+                <a href="{% url 'manage_venues' %}" class="btn btn-secondary col-5 mb-4">Back to Venues</a>
             </div>
         </div>
     </div>
