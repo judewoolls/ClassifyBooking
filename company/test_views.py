@@ -1375,3 +1375,97 @@ class RefundClientTokenViewTest(TestCase):
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
+
+class ViewRefundRequestsViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a regular user (non-manager)
+        self.regular_user = User.objects.create_user(username='regular', password='testpass')
+        self.regular_user.profile.company = self.company
+        self.regular_user.profile.save()
+
+        # Create tokens and refund requests
+        self.token1 = Token.objects.create(user=self.regular_user, company=self.company, used=True, refunded=True)
+        self.token2 = Token.objects.create(user=self.regular_user, company=self.company, used=True, refunded=True)
+        self.refund_request1 = RefundRequest.objects.create(user=self.regular_user, token=self.token1, status='Pending')
+        self.refund_request2 = RefundRequest.objects.create(user=self.regular_user, token=self.token2, status='Approved')
+
+        # URL for the view refund requests view
+        self.url = reverse('view_refund_requests')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_manager_view_refund_requests(self):
+        """Test that the manager can view all refund requests for their company."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_refund_requests.html')
+        self.assertEqual(response.context['company'], self.company)
+        self.assertQuerysetEqual(
+            response.context['refund_requests'],
+            RefundRequest.objects.filter(token__company=self.company).annotate(
+                status_priority=Case(
+                    When(status='Pending', then=1),
+                    When(status='Approved', then=2),
+                    default=3,
+                    output_field=IntegerField()
+                )
+            ).order_by('status_priority', '-created_at'),
+            transform=lambda x: x
+        )
+        self.assertContains(response, f'Found 2 refund requests for your company.')
+
+    def test_regular_user_view_refund_requests(self):
+        """Test that a regular user can view their own refund requests."""
+        self.client.login(username='regular', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_refund_requests.html')
+        self.assertEqual(response.context['company'], self.company)
+        self.assertQuerysetEqual(
+            response.context['refund_requests'],
+            RefundRequest.objects.filter(user=self.regular_user).annotate(
+                status_priority=Case(
+                    When(status='Pending', then=1),
+                    When(status='Approved', then=2),
+                    default=3,
+                    output_field=IntegerField()
+                )
+            ).order_by('status_priority', '-created_at'),
+            transform=lambda x: x
+        )
+        self.assertContains(response, f'Found 2 refund requests for you.')
+
+    def test_no_refund_requests(self):
+        """Test that the view displays a message when no refund requests exist."""
+        RefundRequest.objects.all().delete()
+
+        self.client.login(username='manager', password='testpass')
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'company/view_refund_requests.html')
+        self.assertContains(response, 'No refund requests found.')
+
+    def test_user_without_company(self):
+        """Test that a user without a company is redirected to the dashboard with an error message."""
+        user_without_company = User.objects.create_user(username='nocompanyuser', password='testpass')
+        self.client.login(username='nocompanyuser', password='testpass')
+
+        response = self.client.get(self.url)
+
+        self.assertRedirects(response, reverse('company_dashboard'))
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))
