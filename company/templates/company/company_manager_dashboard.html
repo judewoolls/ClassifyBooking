@@ -6,7 +6,7 @@
 <h3>Manager: {{ company.manager }}</h3>
 <div class="container">
     <div class="row">
-        <div class="card col-12 col-md-6">
+        <div class="card col-12">
             <details class="company-info">
                 <summary>Company info</summary>
                 <h5 class="mt-1"><strong>{{ company.name }}</strong></h5>
@@ -18,11 +18,11 @@
                 <p class="card-footer"><a href="{{ company.website}}" style="color: blue; text-decoration: underline;">Visit company website</a></p>
             </details>
         </div>
-        <div class="card col-12 col-md-6">
+        <div class="card col-12">
             <details>
                 <summary>Company forms</summary>
                 <div class="container mb-4" style="display: flex; flex-direction: column; gap: 10px;">
-                    <a href="{% url 'change_company_details' %}" class="btn btn-success mt-2">Change Company information</a>
+                    <a href="{% url 'change_company_details' %}" class="btn btn-success mt-2">Edit Company Info</a>
                     <a href="{% url 'manage_venues' %}" class="btn btn-success mt-2">Manage Venues</a>
                     <a href="{% url 'view_coaches' %}" class="btn btn-success mt-2">View all coaches</a>
                     <a href="{% url 'view_bookings' %}" class="btn btn-success mt-2">View all bookings</a>
