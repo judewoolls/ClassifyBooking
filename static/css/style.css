@@ -6,13 +6,24 @@ html, body {
 }
 
 body {
-    background-color: rgb(237, 229, 229);
+    background-color: white;
 }
 
-body {
+nav, footer {
+    background-color: white;
+}
+
+#content-background {
+    background-color: #f0f2f5;
     display: flex;
     flex-direction: column;
+    min-height: 100%;
 }
+
+/* body {
+    display: flex;
+    flex-direction: column;
+} */
 
 main {
     flex: 1;
