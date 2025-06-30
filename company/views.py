@@ -452,6 +452,8 @@ def deny_refund_request(request, request_id):
         refund_request.status = 'Denied'
         refund_request.reviewed_by = request.user
         try:
+            if not refund_request.token:
+                raise Token.DoesNotExist  # Explicitly raise the exception if the token is missing
             refund_request.token.used = False  # Mark the token as used
             refund_request.token.refunded = False  # Mark the token as refunded
             refund_request.token.save()
