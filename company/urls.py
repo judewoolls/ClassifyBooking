@@ -25,4 +25,6 @@ urlpatterns = [
     path('view_refund_requests', views.view_refund_requests, name="view_refund_requests"),
     path('approve_refund_request/<int:request_id>/', views.approve_refund_request, name='approve_refund_request'),
     path('deny_refund_request/<int:request_id>/', views.deny_refund_request, name='deny_refund_request'),
+    path('client_leave_company/', views.client_leave_company, name='client_leave_company'),
+    path('join_company/', views.join_company, name='join_company'),
 ]

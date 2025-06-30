@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm, JoinCompanyForm
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -27,6 +27,7 @@ def company_dashboard(request):
     else:
         # If the user doesn't have a company, redirect to company creation page
         create_company_form = CreateCompanyForm(request.POST)
+        join_company_form = JoinCompanyForm(request.POST)
         if request.method == 'POST':
             form = CreateCompanyForm(request.POST)
             if form.is_valid():
@@ -48,8 +49,26 @@ def company_dashboard(request):
             form = CreateCompanyForm()
 
         return render(request, 'company/create_company.html', {
-            'create_form': create_company_form,                                       
+            'create_form': create_company_form,
+            'join_form': join_company_form,                                       
             })
+    
+@login_required
+def join_company(request):
+    if request.method == 'POST':
+        form = JoinCompanyForm(request.POST)
+        if form.is_valid():
+            company = form.cleaned_data['company']
+            request.user.profile.company = company
+            request.user.profile.save()
+            messages.success(request, f'You have successfully joined the company: {company.name}.')
+            return redirect('company_dashboard')
+        else:
+            messages.error(request, 'Form is invalid. Please correct the errors.')
+    else:
+        form = JoinCompanyForm()
+
+    return render(request, 'company/join_company.html', {'form': form})
     
 @login_required
 def change_company_details(request):
@@ -466,3 +485,28 @@ def deny_refund_request(request, request_id):
         messages.error(request, 'Refund request not found or does not belong to your company.')
 
     return redirect('view_refund_requests')
+
+@login_required
+def client_leave_company(request):
+    try:
+        # Check if the user has a valid company in their profile
+        if not request.user.profile.company:
+            messages.error(request, 'You are not associated with any company.')
+            return redirect('company_dashboard')
+
+        # Check if the user has any unused and unrefunded tokens
+        unused_tokens = Token.objects.filter(user=request.user, company=request.user.profile.company, used=False, refunded=False)
+        if unused_tokens.exists():
+            messages.error(request, 'You cannot leave the company while you have unused or unrefunded tokens.')
+            return redirect('company_dashboard')
+
+        # Remove the user's company association
+        request.user.profile.company = None
+        request.user.profile.save()
+
+        messages.success(request, 'You have successfully left the company.')
+        return redirect('company_dashboard')
+
+    except AttributeError:
+        messages.error(request, 'An error occurred while processing your request.')
+        return redirect('company_dashboard')

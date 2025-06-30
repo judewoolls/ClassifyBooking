@@ -159,3 +159,11 @@ class PurchaseTokenForm(forms.Form):
         for _ in range(token_count):
             Token.objects.create(user=self.company.manager, company=self.company)
         return token_count
+    
+class JoinCompanyForm(forms.Form):
+    company = forms.ModelChoiceField(
+        queryset=Company.objects.all(),
+        label="Select Company",
+        empty_label="Select a company",
+        required=True
+    )
