@@ -1469,3 +1469,79 @@ class ViewRefundRequestsViewTest(TestCase):
         self.assertRedirects(response, reverse('company_dashboard'))
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('You do not have a company associated with your profile.' in str(m) for m in messages))
+
+
+class ApproveRefundRequestViewTest(TestCase):
+    def setUp(self):
+        # Create a manager user and their company
+        self.manager_user = User.objects.create_user(username='manager', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.manager_user)
+        self.manager_user.profile.company = self.company
+        self.manager_user.profile.save()
+
+        # Create a regular user (non-manager)
+        self.regular_user = User.objects.create_user(username='regular', password='testpass')
+        self.regular_user.profile.company = self.company
+        self.regular_user.profile.save()
+
+        # Create a token and a refund request
+        self.token = Token.objects.create(user=self.regular_user, company=self.company, used=True, refunded=True)
+        self.refund_request = RefundRequest.objects.create(user=self.regular_user, token=self.token, status='Pending')
+
+        # URL for the approve refund request view
+        self.url = reverse('approve_refund_request', args=[self.refund_request.id])
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.post(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_approve_refund_request_successfully(self):
+        """Test that a manager can approve a refund request successfully."""
+        self.client.login(username='manager', password='testpass')
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_refund_requests'))
+
+        # Verify the refund request was updated
+        self.refund_request.refresh_from_db()
+        self.assertEqual(self.refund_request.status, 'Approved')
+        self.assertEqual(self.refund_request.reviewed_by, self.manager_user)
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Refund request approved successfully.' in str(m) for m in messages))
+
+    def test_approve_refund_request_invalid(self):
+        """Test that an invalid refund request cannot be approved."""
+        self.client.login(username='manager', password='testpass')
+
+        # Use an invalid refund request ID
+        invalid_url = reverse('approve_refund_request', args=[999])  # Non-existent refund request ID
+        response = self.client.post(invalid_url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_refund_requests'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Refund request not found or does not belong to your company.' in str(m) for m in messages))
+
+    def test_approve_refund_request_not_in_company(self):
+        """Test that a manager cannot approve a refund request not in their company."""
+        other_company = Company.objects.create(name="Other Company", manager=self.manager_user)
+        other_token = Token.objects.create(user=self.regular_user, company=other_company, used=True, refunded=True)
+        other_refund_request = RefundRequest.objects.create(user=self.regular_user, token=other_token, status='Pending')
+
+        self.client.login(username='manager', password='testpass')
+        url = reverse('approve_refund_request', args=[other_refund_request.id])
+        response = self.client.post(url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('view_refund_requests'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('Refund request not found or does not belong to your company.' in str(m) for m in messages))
