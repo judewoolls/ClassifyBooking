@@ -59,17 +59,10 @@ class ViewClientsViewTest(TestCase):
 
 class CompanyDashboardViewTest(TestCase):
     def setUp(self):
-        # Create a user and their profile
         self.user = User.objects.create_user(username='testuser', password='testpass')
-
-        # Create a company and associate it with the user
         self.company = Company.objects.create(name="Test Company", manager=self.user)
-
-        # Attach the company to the user's profile
         self.user.profile.company = self.company
         self.user.profile.save()
-
-        # URL for the company dashboard
         self.url = reverse('company_dashboard')
 
     def test_redirect_if_not_logged_in(self):
@@ -113,6 +106,22 @@ class CompanyDashboardViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'company/create_company.html')
         self.assertIsInstance(response.context['create_form'], CreateCompanyForm)
+
+    def test_user_without_profile(self):
+        """Test that a user without a profile is redirected with an error message."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Simulate a missing profile by deleting it
+        self.user.profile.delete()
+
+        response = self.client.get(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, self.url)
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You do not have a profile associated with your account.' in str(m) for m in messages))
 
 
 class ChangeCompanyDetailsViewTest(TestCase):
@@ -1727,3 +1736,89 @@ class JoinCompanyViewTest(TestCase):
         # Check for the redirect
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('company_dashboard'))
+
+
+class ClientLeaveCompanyViewTest(TestCase):
+    def setUp(self):
+        # Create a user and their company
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.company = Company.objects.create(name="Test Company", manager=self.user)
+        self.user.profile.company = self.company
+        self.user.profile.save()
+
+        # URL for the client leave company view
+        self.url = reverse('client_leave_company')
+
+    def test_redirect_if_not_logged_in(self):
+        """Test that unauthenticated users are redirected to the login page."""
+        response = self.client.get(self.url)
+        login_url = reverse('account_login')
+        self.assertRedirects(response, f"{login_url}?next={self.url}")
+
+    def test_user_without_company(self):
+        """Test that a user without a company cannot leave a company."""
+        self.user.profile.company = None
+        self.user.profile.save()
+
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You are not associated with any company.' in str(m) for m in messages))
+
+    def test_user_with_unused_tokens(self):
+        """Test that a user with unused or unrefunded tokens cannot leave the company."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Create an unused and unrefunded token
+        Token.objects.create(user=self.user, company=self.company, used=False, refunded=False)
+
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You cannot leave the company while you have unused or unrefunded tokens.' in str(m) for m in messages))
+
+        # Verify the user's company association was not removed
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.company, self.company)
+
+    def test_successful_leave_company(self):
+        """Test that a user can successfully leave the company."""
+        self.client.login(username='testuser', password='testpass')
+
+        response = self.client.post(self.url)
+
+        # Check for the redirect
+        self.assertRedirects(response, reverse('company_dashboard'))
+
+        # Check for the success message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('You have successfully left the company.' in str(m) for m in messages))
+
+        # Verify the user's company association was removed
+        self.user.profile.refresh_from_db()
+        self.assertIsNone(self.user.profile.company)
+
+    def test_attribute_error_handling(self):
+        """Test that an AttributeError is handled gracefully."""
+        self.client.login(username='testuser', password='testpass')
+
+        # Simulate an AttributeError by deleting the user's profile
+        self.user.profile.delete()
+
+        response = self.client.post(self.url)
+
+        # Check for the redirect to the 'home' view
+        self.assertRedirects(response, reverse('home'))
+
+        # Check for the error message
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any('An error occurred while processing your request.' in str(m) for m in messages))

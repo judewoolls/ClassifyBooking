@@ -12,46 +12,49 @@ from django.db.models import Case, When, IntegerField
 
 @login_required
 def company_dashboard(request):
-    # Get the user's profile and associated company
-    if request.user.profile.company:
-        company = request.user.profile.company
-        # Check if the user is the manager
-        if company.manager == request.user:
-            return render(request, 'company/company_manager_dashboard.html', {'company': company})
-        # Else if they are a coach or user (you can check for their role)
+    try:
+        if request.user.profile.company:
+            company = request.user.profile.company
+            # Check if the user is the manager
+            if company.manager == request.user:
+                return render(request, 'company/company_manager_dashboard.html', {'company': company})
+            # Else if they are a coach or user (you can check for their role)
+            else:
+                tokens = Token.objects.filter(user=request.user, company=company, used=False).count()
+                return render(request, 'company/company_user_dashboard.html', {'company': company,
+                                                                               'user': request.user,
+                                                                               'tokens': tokens})
         else:
-            tokens = Token.objects.filter(user=request.user, company=company, used=False).count()
-            return render(request, 'company/company_user_dashboard.html', {'company': company,
-                                                                           'user': request.user,
-                                                                           'tokens': tokens})
-    else:
-        # If the user doesn't have a company, redirect to company creation page
-        create_company_form = CreateCompanyForm(request.POST)
-        join_company_form = JoinCompanyForm(request.POST)
-        if request.method == 'POST':
-            form = CreateCompanyForm(request.POST)
-            if form.is_valid():
-                company = form.save(commit=False)
-                company.manager = request.user
-                company.save()
+            # If the user doesn't have a company, redirect to company creation page
+            create_company_form = CreateCompanyForm(request.POST)
+            join_company_form = JoinCompanyForm(request.POST)
+            if request.method == 'POST':
+                form = CreateCompanyForm(request.POST)
+                if form.is_valid():
+                    company = form.save(commit=False)
+                    company.manager = request.user
+                    company.save()
 
-                profile = request.user.profile  
-                profile.company = company
-                profile.save()
+                    profile = request.user.profile  
+                    profile.company = company
+                    profile.save()
 
-                coach = Coach(coach=request.user, company=company)
-                coach.save()
+                    coach = Coach(coach=request.user, company=company)
+                    coach.save()
 
 
-                messages.success(request, 'Company created successfully.')
-                return redirect('company_dashboard')  # update this to your URL name
-        else:
-            form = CreateCompanyForm()
+                    messages.success(request, 'Company created successfully.')
+                    return redirect('company_dashboard')  # update this to your URL name
+            else:
+                form = CreateCompanyForm()
 
-        return render(request, 'company/create_company.html', {
-            'create_form': create_company_form,
-            'join_form': join_company_form,                                       
-            })
+            return render(request, 'company/create_company.html', {
+                'create_form': create_company_form,
+                'join_form': join_company_form,                                       
+                })
+    except User.profile.RelatedObjectDoesNotExist:
+        messages.error(request, 'You do not have a profile associated with your account.')
+        return redirect('company_dashboard')
     
 @login_required
 def join_company(request):
@@ -511,4 +514,4 @@ def client_leave_company(request):
 
     except AttributeError:
         messages.error(request, 'An error occurred while processing your request.')
-        return redirect('company_dashboard')
+        return redirect('home')
