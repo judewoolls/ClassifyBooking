@@ -22,10 +22,14 @@
                     <td>{{ booking.event.event_name }}</td>
                     <td>{{ booking.event.date_of_event }}</td>
                     <td>
+                        {% if booking.event.status == 0 %}
                         <form action="{% url 'delete_booking' booking.id %}" method="post" style="display:inline;">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                         </form>
+                        {% else %}
+                        <span class="text-muted">Expired</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
