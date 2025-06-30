@@ -10,7 +10,6 @@
             {% if user == company.manager %}
             <thead>
                 <tr>
-                    <th>Request ID</th>
                     <th>User</th>
                     <th>Purchased On</th>
                     <th>Approve</th>
@@ -20,7 +19,6 @@
             {% elif user == request.user %}
             <thead>
                 <tr>
-                    <th>Request ID</th>
                     <th>Company</th>
                     <th>Date of Request</th>
                     <th>Status</th>
@@ -33,7 +31,6 @@
                 {% for request in refund_requests %}
                 {% if user == company.manager %}
                 <tr>
-                    <td>{{ request.id }}</td>
                     <td>{{ request.user.username }}</td>
                     <td>{{ request.token.purchased_on }}</td>
                     {% if request.status == "Pending" %}
@@ -59,7 +56,6 @@
                 </tr>
                 {% elif user == request.user %}
                 <tr>
-                    <td>{{ request.id }}</td>
                     <td>{{ request.token.company.name }}</td>
                     <td>{{ request.created_at }}</td>
                     <td>
