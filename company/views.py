@@ -54,7 +54,7 @@ def company_dashboard(request):
                 })
     except User.profile.RelatedObjectDoesNotExist:
         messages.error(request, 'You do not have a profile associated with your account.')
-        return redirect('company_dashboard')
+        return redirect('home')
     
 @login_required
 def join_company(request):
@@ -397,7 +397,7 @@ def refund_client_token(request, token_id):
             token_company = token.company
             if token_company.manager != request.user:
                 messages.error(request, 'You do not have permission to refund this token.')
-                return redirect('view_client_tokens', client_id=token.user.id)
+                return redirect('view_client_tokens', client_id=token.user.id)  # Correct redirect
             token.used = True
             token.refunded = True
             token.save()

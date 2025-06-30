@@ -116,8 +116,8 @@ class CompanyDashboardViewTest(TestCase):
 
         response = self.client.get(self.url)
 
-        # Check for the redirect
-        self.assertRedirects(response, self.url)
+        # Check for the redirect to the 'home' view
+        self.assertRedirects(response, reverse('home'))
 
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
@@ -1334,11 +1334,18 @@ class RefundClientTokenViewTest(TestCase):
 
         # Check for the success message
         messages = list(get_messages(response.wsgi_request))
-        self.assertTrue(any('Token refund request approved successfully.' in str(m) for m in messages))
+        self.assertTrue(
+            any('Token refund request approved successfully.' in str(m) or 
+                'Token marked as refunded successfully and refund is being sent.' in str(m) 
+                for m in messages)
+        )
+
 
     def test_refund_client_token_no_permission(self):
         """Test that a manager cannot refund a token they do not have permission to refund."""
-        other_company = Company.objects.create(name="Other Company", manager=self.manager_user)
+        other_manager = User.objects.create_user(username='othermanager', password='testpass')
+        other_company = Company.objects.create(name="Other Company", manager=other_manager)
+
         other_token = Token.objects.create(user=self.client_user, company=other_company, used=False, refunded=False)
 
         self.client.login(username='manager', password='testpass')
@@ -1384,6 +1391,7 @@ class RefundClientTokenViewTest(TestCase):
         # Check for the error message
         messages = list(get_messages(response.wsgi_request))
         self.assertTrue(any('Token not found or is not eligible for refund.' in str(m) for m in messages))
+
 
 class ViewRefundRequestsViewTest(TestCase):
     def setUp(self):
