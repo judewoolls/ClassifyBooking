@@ -3,10 +3,11 @@ from django.contrib.auth.models import User
 from cloudinary.models import CloudinaryField
 
 class Image(models.Model):
+    name = models.CharField(max_length=100, unique=True)
     image = CloudinaryField('image')
 
     def __str__(self):
-        return f"Image {self.id}"
+        return f"Image {self.id}: {self.name}"
 
 
 class Company(models.Model):
