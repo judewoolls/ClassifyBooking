@@ -98,10 +98,27 @@ a {
     color: white;
 }
 
+.custom-link-color {
+    text-decoration: underline;
+    color: #38b6ff;
+}
+
 #woollswebsites-link {
     text-decoration: underline;
     color: #38b6ff;
 }
+
+.class-name-link {
+    text-decoration: underline;
+    color: black;
+    transition: all 0.3s ease-in-out;
+}
+
+.class-name-link:hover {
+    text-decoration: underline;
+    color: #38b6ff;
+}
+
 
 @media screen and (max-width: 600px) {
     #leaderboard {
