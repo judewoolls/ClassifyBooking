@@ -9,7 +9,30 @@
     <form action="{% url 'purchase_tokens' %}" method="post">
         {% csrf_token %}
         {{ form.as_p }}
+        <p><strong>Total Price:</strong> £<span id="price_display">0.00</span></p>
+        <input type="hidden" id="unit_price" value="{{ company.token_price }}">
         <button type="submit" class="btn btn-success">Purchase Tokens</button>
     </form>
 </div>
+
+
+<script>
+    // Get the input and display elements
+    console.log('working here')
+    const quantityInput = document.getElementById("id_token_count");  // 'id_' prefix comes from Django forms
+    const priceDisplay = document.getElementById("price_display");
+  
+    const pricePerToken = document.getElementById('unit_price').value;
+    console.log(pricePerToken);
+  
+    // Event listener for input
+    if (quantityInput) {
+      quantityInput.addEventListener("input", () => {
+        const quantity = parseInt(quantityInput.value) || 0;
+        const total = quantity * pricePerToken;
+        priceDisplay.textContent = total.toFixed(2);
+      });
+    }
+  </script>
+  
 {% endblock content %}
