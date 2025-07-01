@@ -21,6 +21,7 @@ class Company(models.Model):
     email = models.EmailField()
     website = models.URLField()
     auto_updates = models.BooleanField(default=False)
+    token_price = models.DecimalField(max_digits=8, decimal_places=2, default=5.00)
 
     def __str__(self):
         return self.name
@@ -61,11 +62,32 @@ class UserProfile(models.Model):
         return f"{self.user.username} - {company_name}"
     
 
+    
+# TokenPurchase model - to track token purchases by users
+class TokenPurchase(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    tokens_bought = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=8, decimal_places=2)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True, null=True)
+
+    def get_cost_per_token(self):
+        return self.total_price / self.tokens_bought if self.tokens_bought > 0 else 0
+    
+
+
+    def __str__(self):
+        return f"{self.user} bought {self.tokens_bought} token(s) from {self.company}"
+    
+
 class Token(models.Model):
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tokens')
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     purchased_on = models.DateTimeField(auto_now_add=True)
+    purchase = models.ForeignKey(
+       TokenPurchase, on_delete=models.CASCADE, null=True, blank=True, default=None)
     used = models.BooleanField(default=False)
     refunded = models.BooleanField(default=False)
     booking = models.ForeignKey(
@@ -99,3 +121,4 @@ class RefundRequest(models.Model):
 
     def __str__(self):
         return f"RefundRequest for Token {self.token.id} - Status: {self.status}"
+
