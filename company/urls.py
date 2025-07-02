@@ -27,4 +27,5 @@ urlpatterns = [
     path('deny_refund_request/<int:request_id>/', views.deny_refund_request, name='deny_refund_request'),
     path('client_leave_company/', views.client_leave_company, name='client_leave_company'),
     path('join_company/', views.join_company, name='join_company'),
+    path('update_token_price/', views.update_token_price, name="update_token_price"),
 ]

@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm, JoinCompanyForm
+from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm, JoinCompanyForm, TokenPriceUpdateForm
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Coach, Token, Venue, RefundRequest
+from .models import Coach, Token, Venue, RefundRequest, TokenPurchase
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
@@ -353,9 +353,17 @@ def purchase_tokens(request):
             token_count = form.cleaned_data['token_count']
             company = request.user.profile.company
             if company:
+                # create token purchase object
+                total_price = token_count * company.token_price
+                purchase = TokenPurchase.objects.create(
+                    user = request.user,
+                    company=company,
+                    tokens_bought=token_count,
+                    total_price=total_price
+                )
                 # Create tokens for the user
                 for _ in range(token_count):
-                    Token.objects.create(user=request.user, company=company)
+                    Token.objects.create(user=request.user, company=company, purchase=purchase)
                 request.user.profile.token_count += token_count
                 request.user.profile.save()
                 messages.success(request, f'{token_count} tokens purchased successfully.')
@@ -515,3 +523,26 @@ def client_leave_company(request):
     except AttributeError:
         messages.error(request, 'An error occurred while processing your request.')
         return redirect('home')
+
+@login_required
+def update_token_price(request):
+    company = request.user.profile.company
+
+    # You could also check here if user is a manager
+    if not request.user == company.manager:
+        messages.error(request, 'You do not have permission to update the token price.')
+        return redirect('dashboard')  # or show an error
+
+    if request.method == "POST":
+        form = TokenPriceUpdateForm(request.POST, instance=company)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Token price updated successfully.')
+            return redirect("company_dashboard")  # wherever you want
+    else:
+        form = TokenPriceUpdateForm(instance=company)
+
+    return render(request, "company/update_token_price.html", {
+        "form": form,
+        "company": company
+    })

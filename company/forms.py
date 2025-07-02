@@ -167,3 +167,11 @@ class JoinCompanyForm(forms.Form):
         empty_label="Select a company",
         required=True
     )
+
+class TokenPriceUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Company
+        fields = ['token_price']
+        labels = {'token_price': 'Token Price (£)'}
+
+    
