@@ -4,11 +4,16 @@ from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, Re
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Coach, Token, Venue, RefundRequest, TokenPurchase
+from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Case, When, IntegerField
+import stripe
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
+
 
 @login_required
 def company_dashboard(request):
@@ -546,3 +551,97 @@ def update_token_price(request):
         "form": form,
         "company": company
     })
+
+
+# stripe
+
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+@login_required
+def create_checkout_session(request):
+    if request.method == 'POST':
+        try:
+            company = request.user.profile.company
+            token_count = int(request.POST.get('token_count'))
+            unit_price = company.token_price  # price per token in pence (e.g. £2.00)
+            total_price = token_count * unit_price
+
+            session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'gbp',
+                        'product_data': {
+                            'name': f'{token_count} Tokens',
+                        },
+                        'unit_amount': int(unit_price) * 100, # price in p not £
+                    },
+                    'quantity': token_count,
+                }],
+                mode='payment',
+                success_url='http://localhost:8000/company/checkout/success/',
+                cancel_url='http://localhost:8000/company/checkout/cancel/',
+                metadata={
+                    'user_id': str(request.user.id),
+                    'token_count': str(token_count),
+                    'company_id': str(company.company_id)
+                }
+            )
+            return redirect(session.url, code=303)
+        except Exception as e:
+            return HttpResponseBadRequest(str(e))
+
+
+
+def success_view(request):
+    return render(request, "company/success.html")
+
+def cancel_view(request):
+    return render(request, "company/cancel.html")
+
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        return HttpResponseBadRequest()
+    except stripe.error.SignatureVerificationError as e:
+        return HttpResponseBadRequest()
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        user_id = session['metadata']['user_id']
+        token_count = int(session['metadata']['token_count'])
+        company_id = session['metadata']['company_id']
+
+        try:
+            user = User.objects.get(id=user_id)
+            company = Company.objects.get(id=company_id)
+
+            total_price = token_count * company.token_price
+            purchase = TokenPurchase.objects.create(
+                user=user,
+                company=company,
+                tokens_bought=token_count,
+                total_price=total_price
+            )
+
+            for _ in range(token_count):
+                Token.objects.create(user=user, company=company, purchase=purchase)
+
+            user.profile.token_count += token_count
+            user.profile.save()
+
+        except Exception as e:
+            return HttpResponseBadRequest(str(e))
+
+    return HttpResponse(status=200)

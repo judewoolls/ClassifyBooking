@@ -28,4 +28,8 @@ urlpatterns = [
     path('client_leave_company/', views.client_leave_company, name='client_leave_company'),
     path('join_company/', views.join_company, name='join_company'),
     path('update_token_price/', views.update_token_price, name="update_token_price"),
+    path("create-checkout-session/", views.create_checkout_session, name="create_checkout_session"),
+    path("checkout/success/", views.success_view, name="checkout_success"),
+    path("checkout/cancel/", views.cancel_view, name="checkout_cancel"),
+    path('webhooks/stripe/', views.stripe_webhook, name='stripe_webhook'),
 ]
