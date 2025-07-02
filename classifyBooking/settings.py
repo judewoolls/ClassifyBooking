@@ -194,11 +194,7 @@ MESSAGE_TAGS = {
 
 # Stripe settings
 
-from decouple import Config, RepositoryEnv
-
-ENV_FILE_PATH = os.path.join(BASE_DIR, 'env.py')
-
-config = Config(RepositoryEnv(ENV_FILE_PATH))
-
-STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY")
-STRIPE_PUBLIC_KEY = config("STRIPE_PUBLIC_KEY")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_PUBLIC_KEY = os.environ.get("STRIPE_PUBLIC_KEY")
+if not STRIPE_SECRET_KEY or not STRIPE_PUBLIC_KEY:
+    raise ValueError("Stripe keys are not set in the environment variables.")
