@@ -575,11 +575,14 @@ def create_checkout_session(request):
                         'product_data': {
                             'name': f'{token_count} Tokens',
                         },
-                        'unit_amount': int(unit_price) * 100, # price in p not £
+                        'unit_amount': int(unit_price) * 100,  # price in pence
                     },
                     'quantity': token_count,
                 }],
                 mode='payment',
+                payment_intent_data={
+                    'description': f'Purchase of {token_count} tokens for company {company.name}',
+                },
                 success_url='http://classifybooking-2be97a09d742.herokuapp.com/company/checkout/success/',
                 cancel_url='http://classifybooking-2be97a09d742.herokuapp.com/company/checkout/cancel/',
                 metadata={
@@ -607,58 +610,45 @@ logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def stripe_webhook(request):
-
-    # --- ADD THIS LOGGING AT THE VERY BEGINNING ---
     logger.info(f"Webhook received! Method: {request.method}, Path: {request.path}")
-    logger.info(f"Request Headers: {request.META}")
-    # ----------------------------------------------
 
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
-
-    logger.info(f"Payload length: {len(payload)} bytes")
-    logger.info(f"Signature Header: {sig_header}")
-    logger.info(f"Endpoint Secret: {endpoint_secret}") # Be careful with logging secrets in production
 
     if not sig_header:
         logger.error("Missing Stripe signature header.")
         return HttpResponseBadRequest("Missing Stripe signature header.")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
         logger.info(f"Stripe event constructed successfully. Type: {event['type']}")
     except (ValueError, stripe.error.SignatureVerificationError) as e:
         logger.error(f"Stripe webhook signature verification error: {e}")
-        return HttpResponseBadRequest(f"Webhook signature verification failed: {e}") # Return error for Stripe to see
+        return HttpResponseBadRequest(f"Webhook signature verification failed: {e}")
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        logger.info(f"Checkout session completed event. Session ID: {session['id']}, Payment Status: {session.get('payment_status')}")
+        logger.info(f"Checkout session completed event. Session ID: {session['id']}")
 
         if session.get("payment_status") != "paid":
-            logger.warning(f"Payment status is not 'paid' for session {session['id']}. Status: {session.get('payment_status')}. Returning 200.")
-            return HttpResponse(status=200) # Still return 200 if not paid, but log it
+            logger.warning(f"Payment status is not 'paid' for session {session['id']}.")
+            return HttpResponse(status=200)
 
-        # --- ADD MORE LOGGING FOR METADATA ---
-        metadata = session.get('metadata', {}) # Use .get() for safer access
+        metadata = session.get('metadata', {})
         user_id = metadata.get('user_id')
-        token_count_str = metadata.get('token_count') # Get as string first
+        token_count_str = metadata.get('token_count')
         company_id = metadata.get('company_id')
 
-        logger.info(f"Extracted Metadata: user_id={user_id}, token_count_str={token_count_str}, company_id={company_id}")
-
         if not all([user_id, token_count_str, company_id]):
-            logger.error(f"Missing required metadata in webhook: user_id={user_id}, token_count={token_count_str}, company_id={company_id}")
-            return HttpResponseBadRequest("Missing required metadata in webhook.")
+            logger.error(f"Missing required metadata: user_id={user_id}, token_count={token_count_str}, company_id={company_id}")
+            return HttpResponseBadRequest("Missing required metadata.")
 
         try:
             token_count = int(token_count_str)
         except (ValueError, TypeError):
-            logger.error(f"Invalid token_count format in metadata: {token_count_str}")
-            return HttpResponseBadRequest("Invalid token count format in metadata.")
+            logger.error(f"Invalid token_count format: {token_count_str}")
+            return HttpResponseBadRequest("Invalid token count format.")
 
         try:
             user = User.objects.get(id=user_id)
@@ -671,7 +661,7 @@ def stripe_webhook(request):
                 company=company,
                 tokens_bought=token_count,
                 total_price=total_price,
-                stripe_payment_intent_id=session.get('payment_intent') # Store payment intent ID
+                stripe_payment_intent_id=session.get('payment_intent')
             )
             logger.info(f"TokenPurchase created: {purchase.id}")
 
@@ -686,15 +676,13 @@ def stripe_webhook(request):
             if profile:
                 profile.token_count += token_count
                 profile.save()
-                logger.info(f"UserProfile token_count updated for {user.username}. New count: {profile.token_count}")
+                logger.info(f"UserProfile token_count updated for {user.username}.")
             else:
-                logger.error(f"UserProfile not found for user {user.username}. Cannot update token_count.")
-                # You might want to create a UserProfile here if it's missing, or handle this case.
+                logger.error(f"UserProfile not found for user {user.username}.")
                 return HttpResponseBadRequest("User profile missing for token update.")
 
-
         except Exception as e:
-            logger.error(f"Error processing Stripe webhook: {e}", exc_info=True) # exc_info=True prints full traceback
+            logger.error(f"Error processing webhook: {e}", exc_info=True)
             return HttpResponseBadRequest(f"Error processing webhook: {e}")
 
-    return HttpResponse(status=200) # Always return 200 for successful receipt/processing
+    return HttpResponse(status=200)
