@@ -12,10 +12,11 @@ django-cloudinary-storage==0.3.0
 gunicorn==20.1.0
 idna==3.10
 oauthlib==3.2.2
-psycopg2==2.9.10
+psycopg==3.2.9
 pycparser==2.22
 PyJWT==2.10.1
 python-decouple==3.8
+python-dotenv==1.1.1
 python3-openid==3.2.0
 requests==2.32.3
 requests-oauthlib==2.0.0
