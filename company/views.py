@@ -4,7 +4,7 @@ from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, Re
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company
+from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company, UserProfile
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
@@ -13,7 +13,7 @@ import stripe
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
-
+import logging
 
 @login_required
 def company_dashboard(request):
@@ -602,23 +602,31 @@ def cancel_view(request):
 
 
 
+logger = logging.getLogger(__name__)
+
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
-    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    if not sig_header:
+        return HttpResponseBadRequest("Missing Stripe signature header.")
 
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret
         )
-    except ValueError as e:
-        return HttpResponseBadRequest()
-    except stripe.error.SignatureVerificationError as e:
+    except (ValueError, stripe.error.SignatureVerificationError) as e:
+        logger.error(f"Stripe webhook error: {e}")
         return HttpResponseBadRequest()
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
+        
+        if session.get("payment_status") != "paid":
+            return HttpResponse(status=200)
+
         user_id = session['metadata']['user_id']
         token_count = int(session['metadata']['token_count'])
         company_id = session['metadata']['company_id']
@@ -635,13 +643,17 @@ def stripe_webhook(request):
                 total_price=total_price
             )
 
-            for _ in range(token_count):
-                Token.objects.create(user=user, company=company, purchase=purchase)
+            Token.objects.bulk_create([
+                Token(user=user, company=company, purchase=purchase)
+                for _ in range(token_count)
+            ])
 
-            user.profile.token_count += token_count
-            user.profile.save()
+            profile = getattr(user, 'profile', None)
+            profile.token_count += token_count
+            profile.save()
 
         except Exception as e:
+            logger.error(f"Error processing Stripe webhook: {e}")
             return HttpResponseBadRequest(str(e))
 
     return HttpResponse(status=200)
