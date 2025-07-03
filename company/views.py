@@ -669,7 +669,7 @@ def stripe_webhook(request):
 
             try:
                 user = User.objects.get(id=user_id)
-                company = Company.objects.get(id=company_id)
+                company = Company.objects.get(company_id=company_id)
                 logger.info(f"User and Company found: {user.username}, {company.name}")
 
                 total_price = token_count * company.token_price
