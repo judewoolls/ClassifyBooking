@@ -604,56 +604,97 @@ def cancel_view(request):
 
 logger = logging.getLogger(__name__)
 
+
 @csrf_exempt
 def stripe_webhook(request):
+
+    # --- ADD THIS LOGGING AT THE VERY BEGINNING ---
+    logger.info(f"Webhook received! Method: {request.method}, Path: {request.path}")
+    logger.info(f"Request Headers: {request.META}")
+    # ----------------------------------------------
+
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
 
+    logger.info(f"Payload length: {len(payload)} bytes")
+    logger.info(f"Signature Header: {sig_header}")
+    logger.info(f"Endpoint Secret: {endpoint_secret}") # Be careful with logging secrets in production
+
     if not sig_header:
+        logger.error("Missing Stripe signature header.")
         return HttpResponseBadRequest("Missing Stripe signature header.")
 
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret
         )
+        logger.info(f"Stripe event constructed successfully. Type: {event['type']}")
     except (ValueError, stripe.error.SignatureVerificationError) as e:
-        logger.error(f"Stripe webhook error: {e}")
-        return HttpResponseBadRequest()
+        logger.error(f"Stripe webhook signature verification error: {e}")
+        return HttpResponseBadRequest(f"Webhook signature verification failed: {e}") # Return error for Stripe to see
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
-        if session.get("payment_status") != "paid":
-            return HttpResponse(status=200)
+        logger.info(f"Checkout session completed event. Session ID: {session['id']}, Payment Status: {session.get('payment_status')}")
 
-        user_id = session['metadata']['user_id']
-        token_count = int(session['metadata']['token_count'])
-        company_id = session['metadata']['company_id']
+        if session.get("payment_status") != "paid":
+            logger.warning(f"Payment status is not 'paid' for session {session['id']}. Status: {session.get('payment_status')}. Returning 200.")
+            return HttpResponse(status=200) # Still return 200 if not paid, but log it
+
+        # --- ADD MORE LOGGING FOR METADATA ---
+        metadata = session.get('metadata', {}) # Use .get() for safer access
+        user_id = metadata.get('user_id')
+        token_count_str = metadata.get('token_count') # Get as string first
+        company_id = metadata.get('company_id')
+
+        logger.info(f"Extracted Metadata: user_id={user_id}, token_count_str={token_count_str}, company_id={company_id}")
+
+        if not all([user_id, token_count_str, company_id]):
+            logger.error(f"Missing required metadata in webhook: user_id={user_id}, token_count={token_count_str}, company_id={company_id}")
+            return HttpResponseBadRequest("Missing required metadata in webhook.")
+
+        try:
+            token_count = int(token_count_str)
+        except (ValueError, TypeError):
+            logger.error(f"Invalid token_count format in metadata: {token_count_str}")
+            return HttpResponseBadRequest("Invalid token count format in metadata.")
 
         try:
             user = User.objects.get(id=user_id)
             company = Company.objects.get(id=company_id)
+            logger.info(f"User and Company found: {user.username}, {company.name}")
 
             total_price = token_count * company.token_price
             purchase = TokenPurchase.objects.create(
                 user=user,
                 company=company,
                 tokens_bought=token_count,
-                total_price=total_price
+                total_price=total_price,
+                stripe_payment_intent_id=session.get('payment_intent') # Store payment intent ID
             )
+            logger.info(f"TokenPurchase created: {purchase.id}")
 
-            Token.objects.bulk_create([
+            tokens_to_create = [
                 Token(user=user, company=company, purchase=purchase)
                 for _ in range(token_count)
-            ])
+            ]
+            Token.objects.bulk_create(tokens_to_create)
+            logger.info(f"{token_count} Tokens created.")
 
             profile = getattr(user, 'profile', None)
-            profile.token_count += token_count
-            profile.save()
+            if profile:
+                profile.token_count += token_count
+                profile.save()
+                logger.info(f"UserProfile token_count updated for {user.username}. New count: {profile.token_count}")
+            else:
+                logger.error(f"UserProfile not found for user {user.username}. Cannot update token_count.")
+                # You might want to create a UserProfile here if it's missing, or handle this case.
+                return HttpResponseBadRequest("User profile missing for token update.")
+
 
         except Exception as e:
-            logger.error(f"Error processing Stripe webhook: {e}")
-            return HttpResponseBadRequest(str(e))
+            logger.error(f"Error processing Stripe webhook: {e}", exc_info=True) # exc_info=True prints full traceback
+            return HttpResponseBadRequest(f"Error processing webhook: {e}")
 
-    return HttpResponse(status=200)
+    return HttpResponse(status=200) # Always return 200 for successful receipt/processing
