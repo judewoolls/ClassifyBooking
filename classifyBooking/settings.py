@@ -205,5 +205,6 @@ MESSAGE_TAGS = {
 
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_PUBLIC_KEY = os.environ.get("STRIPE_PUBLIC_KEY")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET") # <--- ADD THIS LINE
 if not STRIPE_SECRET_KEY or not STRIPE_PUBLIC_KEY:
     raise ValueError("Stripe keys are not set in the environment variables.")
