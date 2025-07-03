@@ -580,8 +580,8 @@ def create_checkout_session(request):
                     'quantity': token_count,
                 }],
                 mode='payment',
-                success_url='http://classifybooking-2be97a09d742.herokuapp.com//company/checkout/success/',
-                cancel_url='http://classifybooking-2be97a09d742.herokuapp.com//company/checkout/cancel/',
+                success_url='http://classifybooking-2be97a09d742.herokuapp.com/company/checkout/success/',
+                cancel_url='http://classifybooking-2be97a09d742.herokuapp.com/company/checkout/cancel/',
                 metadata={
                     'user_id': str(request.user.id),
                     'token_count': str(token_count),
