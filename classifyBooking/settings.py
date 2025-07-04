@@ -157,21 +157,24 @@ import certifi
 
 
 # Email settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com') # Get from env, with fallback
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587)) # Get from env, with fallback
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true' # Get from env, convert to bool
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # for local development
 
-# This is still important for SSL certificate verification
-EMAIL_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+#  uncomment on deployment to heroku
+# EMAIL_HOST = os.environ.get('EMAIL_HOST') # Get from env, with fallback
+# EMAIL_PORT = int(os.environ.get('EMAIL_PORT')) # Get from env, with fallback
+# EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS').lower() == 'true' # Get from env, convert to bool
 
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+# # This is still important for SSL certificate verification
+# EMAIL_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
-# Add a check for missing credentials (good for debugging)
-if not all([EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL]):
-    raise ValueError("Email credentials (EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL) are not set in your .env file.")
+# EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+# DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
+
+# # Add a check for missing credentials (good for debugging)
+# if not all([EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL]):
+#     raise ValueError("Email credentials (EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL) are not set in your .env file.")
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
