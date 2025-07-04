@@ -440,18 +440,6 @@ def view_refund_requests(request):
     })
 
 
-@login_required
-def approve_refund_request(request, request_id):
-    try:
-        refund_request = RefundRequest.objects.get(id=request_id, token__company=request.user.profile.company)
-        refund_request.status = 'Approved'
-        refund_request.reviewed_by = request.user
-        refund_request.save()
-        messages.success(request, 'Refund request approved successfully.')
-    except RefundRequest.DoesNotExist:
-        messages.error(request, 'Refund request not found or does not belong to your company.')
-
-    return redirect('view_refund_requests')
 
 @login_required
 def deny_refund_request(request, request_id):
@@ -751,3 +739,54 @@ def stripe_webhook(request):
         # This catch-all will ensure any unexpected error is logged
         logger.critical(f"UNHANDLED EXCEPTION IN STRIPE WEBHOOK: {e}", exc_info=True)
         return HttpResponseBadRequest(f"An unexpected error occurred: {e}")
+
+
+@login_required
+def approve_refund_request(request, request_id):
+    try:
+        refund_request = RefundRequest.objects.get(
+            id=request_id,
+            token__company=request.user.profile.company,
+            status='Pending'
+        )
+        token = refund_request.token
+        purchase = token.purchase
+
+        if not purchase:
+            messages.error(request, 'Token is not eligible for refund.')
+            return redirect('view_refund_requests')
+
+        cost_per_token = purchase.get_cost_per_token()
+        amount_to_refund = int(cost_per_token * 100)  # Stripe uses cents
+
+        # Perform the Stripe refund
+        refund = stripe.Refund.create(
+            payment_intent=purchase.stripe_payment_intent_id,
+            amount=amount_to_refund,
+            metadata={
+                "refunded_user": token.user.get_full_name() or token.user.username,
+                "refunded_user_id": token.user.id,
+                "refunded_by": request.user.get_full_name() or request.user.username,
+                "reviewer_user_id": request.user.id,
+                "token_id": token.id
+            }
+        )
+
+        # Update token and refund request
+        token.refunded = True
+        token.used = True
+        token.save()
+
+        refund_request.status = 'Approved'
+        refund_request.reviewed_by = request.user
+        refund_request.save()
+
+        messages.success(request, f'Token refunded and request approved. Stripe Refund ID: {refund.id}')
+    except RefundRequest.DoesNotExist:
+        messages.error(request, 'Refund request not found or does not belong to your company.')
+    except stripe.error.StripeError as e:
+        messages.error(request, f'Stripe error: {str(e)}')
+    except Exception as e:
+        messages.error(request, f'Unexpected error: {str(e)}')
+
+    return redirect('view_refund_requests')
