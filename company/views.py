@@ -398,6 +398,14 @@ def refund_token(request, token_id):
                 status='Pending',
                 reviewed_by=None  # Initially, no one has reviewed it
             )
+            admin_email = refund_request.token.company.manager.email  # Adjust if needed
+
+            send_custom_email(
+                subject="New Refund Request Submitted",
+                message=f"A refund request was submitted by {request.user.username}.",
+                recipient_list=[admin_email]
+            )
+
             messages.success(request, 'Token marked for refund successfully and refund request has been sent')
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
