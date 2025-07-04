@@ -402,35 +402,6 @@ def refund_token(request, token_id):
             messages.error(request, 'Token not found or is not eligible for refund.')
     return redirect('company_dashboard')
 
-@login_required
-def refund_client_token(request, token_id):
-    if request.method == 'POST':
-        try:
-            token = Token.objects.get(id=token_id, used=False, refunded=False)
-            token_company = token.company
-            if token_company.manager != request.user:
-                messages.error(request, 'You do not have permission to refund this token.')
-                return redirect('view_client_tokens', client_id=token.user.id)  # Correct redirect
-            token.used = True
-            token.refunded = True
-            token.save()
-            refund_request = RefundRequest.objects.filter(token=token, user=token.user, status='Pending').first()
-            if refund_request:
-                refund_request.status = 'Approved'
-                refund_request.reviewed_by = request.user
-                refund_request.save()
-                messages.success(request, 'Token refund request approved successfully.')
-            else:
-                refund_request = RefundRequest.objects.create(
-                    user=token.user,
-                    token=token,
-                    status='Approved',
-                    reviewed_by=request.user
-                )
-                messages.success(request, 'Token marked as refunded successfully and refund is being sent.')
-        except Token.DoesNotExist:
-            messages.error(request, 'Token not found or is not eligible for refund.')
-    return redirect('view_clients')
 
 @login_required
 def view_refund_requests(request):
@@ -558,6 +529,7 @@ def update_token_price(request):
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
+# purchasing tokens
 @login_required
 def create_checkout_session(request):
     if request.method == 'POST':
@@ -603,6 +575,77 @@ def success_view(request):
 def cancel_view(request):
     return render(request, "company/cancel.html")
 
+# refunds
+
+
+@login_required
+def refund_client_token(request, token_id):
+    if request.method == 'POST':
+        try:
+            token = Token.objects.get(id=token_id, used=False, refunded=False)
+            token_company = token.company
+
+            if token_company.manager != request.user:
+                messages.error(request, 'You do not have permission to refund this token.')
+                return redirect('view_client_tokens', client_id=token.user.id)
+
+            # Ensure the token is linked to a purchase and that the purchase has a Stripe payment_intent
+            if not token.purchase or not token.purchase.stripe_payment_intent_id:
+                messages.error(request, 'Token does not have a valid payment intent for refund.')
+                return redirect('view_client_tokens', client_id=token.user.id)
+
+            # Get the TokenPurchase instance
+            purchase = token.purchase
+            if not purchase:
+                messages.error(request, "No associated purchase found for this token.")
+                return redirect('view_clients')
+
+            payment_intent_id = purchase.stripe_payment_intent_id
+            if not payment_intent_id:
+                messages.error(request, "No Stripe PaymentIntent ID found for this token.")
+                return redirect('view_clients')
+
+            # Calculate cost per token in Stripe's smallest unit (e.g. 500 for £5.00)
+            cost_per_token = int(purchase.get_cost_per_token() * 100)
+
+            # Refund only one token’s cost
+            refund = stripe.Refund.create(
+                payment_intent=payment_intent_id,
+                amount=cost_per_token,
+                metadata={
+                    "refunded_user": token.user.username,
+                    "refunded_user_id": token.user.id,
+                    "refunded_by": request.user.username,
+                    "token_id": token.id
+                }
+            )
+            # Mark token as refunded
+            token.used = True
+            token.refunded = True
+            token.save()
+
+            # Update refund request status if it exists
+            refund_request = RefundRequest.objects.filter(token=token, user=token.user, status='Pending').first()
+            if refund_request:
+                refund_request.status = 'Approved'
+                refund_request.reviewed_by = request.user
+                refund_request.save()
+                messages.success(request, 'Stripe refund issued and request marked approved.')
+            else:
+                RefundRequest.objects.create(
+                    user=token.user,
+                    token=token,
+                    status='Approved',
+                    reviewed_by=request.user
+                )
+                messages.success(request, 'Token refunded via Stripe successfully.')
+
+        except Token.DoesNotExist:
+            messages.error(request, 'Token not found or is not eligible for refund.')
+        except stripe.error.StripeError as e:
+            messages.error(request, f'Stripe error: {str(e)}')
+
+    return redirect('view_clients')
 
 import logging
 from django.conf import settings
