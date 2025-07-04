@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from django.shortcuts import render, redirect
 from company.models import Token
 from booking.utils import update_event_status_if_needed, generate_schedule_for_next_30_days
+from utils.email import send_custom_email
 
 import logging
 
@@ -119,6 +120,11 @@ def book_event(request, event_id):
         token.used = True
         token.booking = Booking.objects.filter(event=event, user=request.user).first()
         token.save()
+        send_custom_email(
+        subject="Booking Confirmation",
+        message=f"You are booked onto {event.event_name} at {event.venue.name} from {event.start_time} until {event.end_time}",
+        recipient_list=[request.user.email]
+    )
 
         messages.success(request, "Event booked successfully. 1 token has been used.")
         return redirect('event_search', date=event.date_of_event)

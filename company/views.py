@@ -14,6 +14,7 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 import logging
+from utils.email import send_custom_email
 
 @login_required
 def company_dashboard(request):
@@ -453,6 +454,12 @@ def deny_refund_request(request, request_id):
             refund_request.token.used = False  # Mark the token as used
             refund_request.token.refunded = False  # Mark the token as refunded
             refund_request.token.save()
+            send_custom_email(
+            subject="Your Refund Request Has Been Denied",
+            message="Unfortunately, your refund request has been denied and the tokens have been returned to you. Please contact your gym for more info.",
+            recipient_list=[refund_request.user.email]
+        )
+
         except Token.DoesNotExist:
             messages.error(request, 'Token associated with this refund request does not exist.')
             return redirect('view_refund_requests')
@@ -780,6 +787,13 @@ def approve_refund_request(request, request_id):
         refund_request.status = 'Approved'
         refund_request.reviewed_by = request.user
         refund_request.save()
+
+        send_custom_email(
+        subject="Your Refund Request Has Been Approved",
+        message="Your refund request has been approved. We'll notify you when it has been processed.",
+        recipient_list=[refund_request.user.email]
+    )
+
 
         messages.success(request, f'Token refunded and request approved. Stripe Refund ID: {refund.id}')
     except RefundRequest.DoesNotExist:

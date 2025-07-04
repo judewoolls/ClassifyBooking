@@ -31,6 +31,6 @@ def send_welcome_email(sender, instance, created, **kwargs):
     if created:
         send_custom_email(
             subject="Welcome to Classify Booking!",
-            message=f"Hi {instance.first_name}, thanks for signing up!",
+            message=f"Hi {instance.username}, thanks for signing up!",
             recipient_list=[instance.email]
         )
