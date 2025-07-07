@@ -642,6 +642,12 @@ def refund_client_token(request, token_id):
                     reviewed_by=request.user
                 )
                 messages.success(request, 'Token refunded via Stripe successfully.')
+            # Send confirmation email to the user
+            send_custom_email(
+                subject="Token Refund Confirmation",
+                message=f"Dear {token.user.username},\n\nYour token with ID {token.id} has been successfully refunded by {request.user.username}. Refund value: £{cost_per_token}. If you have any questions, please contact your gym.\n\nBest regards,\nClassifyBooking Team",
+                recipient_list=[token.user.email]
+            )
 
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
@@ -805,10 +811,10 @@ def approve_refund_request(request, request_id):
         refund_request.save()
 
         send_custom_email(
-        subject="Your Refund Request Has Been Approved",
-        message="Your refund request has been approved. We'll notify you when it has been processed.",
-        recipient_list=[refund_request.user.email]
-    )
+            subject="Token Refund Confirmation",
+            message=f"Dear {token.user.username},\n\nYour token with ID {token.id} has been successfully refunded by {request.user.username}. Refund value: £{cost_per_token}. If you have any questions, please contact your gym.\n\nBest regards,\nClassifyBooking Team",
+            recipient_list=[token.user.email]
+        )
 
 
         messages.success(request, f'Token refunded and request approved. Stripe Refund ID: {refund.id}')
