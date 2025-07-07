@@ -16,7 +16,6 @@ from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 import logging
 from utils.email import send_custom_email
 
-email_image = Image.objects.filter(name="Logo").first()
 
 @login_required
 def company_dashboard(request):
@@ -746,7 +745,7 @@ def stripe_webhook(request):
                 # Send confirmation email to the user
                 send_custom_email(
                     subject="Token Purchase Confirmation",
-                    message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team\n\n\n{email_image.image}",
+                    message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team",
                     recipient_list=[user.email]
                 )
                 logger.info(f"Confirmation email sent to {user.email}.")
