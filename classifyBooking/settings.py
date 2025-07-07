@@ -160,7 +160,7 @@ import certifi
 
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # for local development
 
-#  uncomment on deployment to heroku
+# #  uncomment on deployment to heroku
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST') # Get from env, with fallback
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT')) # Get from env, with fallback
@@ -176,6 +176,9 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 # Add a check for missing credentials (good for debugging)
 if not all([EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL]):
     raise ValueError("Email credentials (EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL) are not set in your .env file.")
+
+
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
