@@ -9,20 +9,20 @@ urlpatterns = [
     path('remove_coach/', views.remove_coach, name='remove_coach'),
     path('remove_client/<int:client_id>/', views.remove_client, name="remove_client"),
     path('view_bookings/', views.view_bookings, name='view_bookings'),
-    path('delete_booking/<int:booking>', views.delete_booking, name='delete_booking'),
+    path('delete_booking/<int:booking_id>/', views.delete_booking, name='delete_booking'),
     path('view_clients/', views.view_clients, name='view_clients'),
     path('client_details/<int:client_id>/', views.client_details, name='client_details'),
-    path('manage_venues', views.manage_venues, name='manage_venues'),
+    path('manage_venues/', views.manage_venues, name='manage_venues'),
     path('add_venue/', views.add_venue, name='add_venue'),
     path('view_venue/<int:venue_id>/', views.view_venue, name='view_venue'),
     path('edit_venue/<int:venue_id>/', views.edit_venue, name='edit_venue'),
     path('remove_venue/<int:venue_id>/', views.remove_venue, name='remove_venue'),
-    path('purchase_tokens', views.purchase_tokens, name='purchase_tokens'),
+    path('purchase_tokens/', views.purchase_tokens, name='purchase_tokens'),
     path('refund_token/<int:token_id>/', views.refund_token, name='refund_token'),
     path('refund_client_token/<int:token_id>/', views.refund_client_token, name='refund_client_token'),
     path('view_tokens/', views.view_tokens, name='view_tokens'),
     path('view_client_tokens/<int:client_id>/', views.view_client_tokens, name='view_client_tokens'),
-    path('view_refund_requests', views.view_refund_requests, name="view_refund_requests"),
+    path('view_refund_requests/', views.view_refund_requests, name="view_refund_requests"),
     path('approve_refund_request/<int:request_id>/', views.approve_refund_request, name='approve_refund_request'),
     path('deny_refund_request/<int:request_id>/', views.deny_refund_request, name='deny_refund_request'),
     path('client_leave_company/', views.client_leave_company, name='client_leave_company'),
@@ -32,4 +32,10 @@ urlpatterns = [
     path("checkout/success/", views.success_view, name="checkout_success"),
     path("checkout/cancel/", views.cancel_view, name="checkout_cancel"),
     path('webhooks/stripe/', views.stripe_webhook, name='stripe_webhook'),
-]
+        # --- NEW: Stripe Connect Onboarding URLs for the COMPANY ---
+#     # These paths are for the company manager to onboard their company's Stripe account.
+    path('stripe/onboard/company/', views.stripe_onboard_company, name='stripe_onboard_company'),
+    path('stripe/onboard/company/return/', views.stripe_onboard_company_return, name='stripe_onboard_company_return'),
+    path('stripe/onboard/company/refresh/', views.stripe_onboard_company_refresh, name='stripe_onboard_company_refresh'),
+
+ ]

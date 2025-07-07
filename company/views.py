@@ -1,20 +1,23 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, RemoveCoachForm, AddVenueForm, EditVenueForm, PurchaseTokenForm, JoinCompanyForm, TokenPriceUpdateForm
-from booking.models import Booking
+from booking.models import Booking, Event # Ensure Event is imported
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company, UserProfile, Image
+from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company, UserProfile, Image # Ensure all models are imported
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Case, When, IntegerField
+from django.urls import reverse # Import reverse for dynamic URLs
 import stripe
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 import logging
 from utils.email import send_custom_email
+
+User = get_user_model() # Best practice for custom user model
+logger = logging.getLogger(__name__) # Initialize logger
 
 
 @login_required
@@ -533,15 +536,29 @@ def update_token_price(request):
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
-# purchasing tokens
+
+# --- Stripe Checkout for Token Purchases (Existing, with minor improvements) ---
+# This view initiates the Stripe Checkout session for buying tokens.
+# The actual TokenPurchase and Token creation will happen in the webhook.
 @login_required
 def create_checkout_session(request):
     if request.method == 'POST':
         try:
             company = request.user.profile.company
+            if not company:
+                messages.error(request, 'You must be part of a company to purchase tokens.')
+                return redirect('company_dashboard')
+
             token_count = int(request.POST.get('token_count'))
-            unit_price = company.token_price  # price per token in pence (e.g. £2.00)
-            total_price = token_count * unit_price
+            if token_count <= 0:
+                messages.error(request, 'Token count must be a positive number.')
+                return redirect(reverse('purchase_tokens'))
+
+            unit_price = company.token_price
+            unit_amount_in_cents = int(unit_price * 100)
+
+            success_url = request.build_absolute_uri(reverse('checkout_success'))
+            cancel_url = request.build_absolute_uri(reverse('checkout_cancel'))
 
             session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
@@ -549,9 +566,10 @@ def create_checkout_session(request):
                     'price_data': {
                         'currency': 'gbp',
                         'product_data': {
-                            'name': f'{token_count} Tokens',
+                            'name': f'{token_count} Tokens for {company.name}',
+                            'description': f'Purchase of {token_count} tokens for ClassifyBooking.',
                         },
-                        'unit_amount': int(unit_price) * 100,  # price in pence
+                        'unit_amount': unit_amount_in_cents,
                     },
                     'quantity': token_count,
                 }],
@@ -559,28 +577,29 @@ def create_checkout_session(request):
                 payment_intent_data={
                     'description': f'Purchase of {token_count} tokens for company {company.name}',
                 },
-                success_url='http://classifybooking-2be97a09d742.herokuapp.com/company/checkout/success/',
-                cancel_url='http://classifybooking-2be97a09d742.herokuapp.com/company/checkout/cancel/',
                 metadata={
                     'user_id': str(request.user.id),
                     'token_count': str(token_count),
-                    'company_id': str(company.company_id)
-                }
+                    'company_id': str(company.company_id),
+                    'purchase_type': 'token_purchase',
+                },
+                success_url=success_url,
+                cancel_url=cancel_url,
             )
+            logger.info(f"Stripe Checkout Session created: {session.id} for user {request.user.id}")
             return redirect(session.url, code=303)
         except Exception as e:
-            return HttpResponseBadRequest(str(e))
-
-
+            messages.error(request, f"Error creating checkout session: {e}")
+            logger.error(f"Error creating checkout session for user {request.user.id}: {e}", exc_info=True)
+            return redirect(reverse('purchase_tokens'))
 
 def success_view(request):
+    messages.success(request, "Payment successful! Your tokens will be added to your account shortly.")
     return render(request, "company/success.html")
 
 def cancel_view(request):
+    messages.info(request, "Payment cancelled. No tokens were purchased.")
     return render(request, "company/cancel.html")
-
-# refunds
-
 
 @login_required
 def refund_client_token(request, token_id):
@@ -593,42 +612,29 @@ def refund_client_token(request, token_id):
                 messages.error(request, 'You do not have permission to refund this token.')
                 return redirect('view_client_tokens', client_id=token.user.id)
 
-            # Ensure the token is linked to a purchase and that the purchase has a Stripe payment_intent
             if not token.purchase or not token.purchase.stripe_payment_intent_id:
                 messages.error(request, 'Token does not have a valid payment intent for refund.')
                 return redirect('view_client_tokens', client_id=token.user.id)
 
-            # Get the TokenPurchase instance
             purchase = token.purchase
-            if not purchase:
-                messages.error(request, "No associated purchase found for this token.")
-                return redirect('view_clients')
-
             payment_intent_id = purchase.stripe_payment_intent_id
-            if not payment_intent_id:
-                messages.error(request, "No Stripe PaymentIntent ID found for this token.")
-                return redirect('view_clients')
 
-            # Calculate cost per token in Stripe's smallest unit (e.g. 500 for £5.00)
             cost_per_token = int(purchase.get_cost_per_token() * 100)
 
-            # Refund only one token’s cost
             refund = stripe.Refund.create(
                 payment_intent=payment_intent_id,
                 amount=cost_per_token,
                 metadata={
-                    "refunded_user": token.user.username,
+                    "refunded_user": token.user.get_full_name() or token.user.username,
                     "refunded_user_id": token.user.id,
-                    "refunded_by": request.user.username,
+                    "refunded_by": request.user.get_full_name() or request.user.username,
                     "token_id": token.id
                 }
             )
-            # Mark token as refunded
             token.used = True
             token.refunded = True
             token.save()
 
-            # Update refund request status if it exists
             refund_request = RefundRequest.objects.filter(token=token, user=token.user, status='Pending').first()
             if refund_request:
                 refund_request.status = 'Approved'
@@ -643,136 +649,31 @@ def refund_client_token(request, token_id):
                     reviewed_by=request.user
                 )
                 messages.success(request, 'Token refunded via Stripe successfully.')
-            # Send confirmation email to the user
+
             send_custom_email(
                 subject="Token Refund Confirmation",
-                message=f"Dear {token.user.username},\n\nYour token with ID {token.id} has been successfully refunded by {request.user.username}. Refund value: £{cost_per_token}. If you have any questions, please contact your gym.\n\nBest regards,\nClassifyBooking Team",
+                message=f"Dear {token.user.username},\n\nYour token with ID {token.id} has been successfully refunded by {request.user.username}. Refund value: £{cost_per_token / 100:.2f}. If you have any questions, please contact your gym.\n\nBest regards,\nClassifyBooking Team",
                 recipient_list=[token.user.email]
             )
 
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
         except stripe.error.StripeError as e:
-            messages.error(request, f'Stripe error: {str(e)}')
+            messages.error(request, f'Stripe error: {str(e.user_message or e)}')
+        except Exception as e:
+            messages.error(request, f'Unexpected error: {str(e)}')
 
     return redirect('view_clients')
 
-import logging
-from django.conf import settings
-from django.http import HttpResponseBadRequest, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-import stripe
-from django.contrib.auth import get_user_model
-from company.models import Company, TokenPurchase, Token, UserProfile
-
-User = get_user_model()
-logger = logging.getLogger(__name__)
-
-@csrf_exempt
-def stripe_webhook(request):
-    # This outer try-except will catch *any* unhandled exception
-    # that occurs within the webhook function and log it.
-    try:
-        logger.info(f"Webhook received! Method: {request.method}, Path: {request.path}")
-
-        payload = request.body
-        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-        endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
-
-        # Log the raw payload for debugging (be careful with sensitive data in production logs)
-        # logger.info(f"Raw Payload: {payload.decode('utf-8')}")
-        logger.info(f"Signature Header: {sig_header}")
-        logger.info(f"Endpoint Secret (first 5 chars): {endpoint_secret[:5]}...") # Log part of secret for verification
-
-        if not sig_header:
-            logger.error("Missing Stripe signature header.")
-            return HttpResponseBadRequest("Missing Stripe signature header.")
-
-        try:
-            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-            logger.info(f"Stripe event constructed successfully. Type: {event['type']}")
-        except (ValueError, stripe.error.SignatureVerificationError) as e:
-            logger.error(f"Stripe webhook signature verification error: {e}", exc_info=True) # Ensure traceback is printed
-            return HttpResponseBadRequest(f"Webhook signature verification failed: {e}")
-
-        if event['type'] == 'checkout.session.completed':
-            session = event['data']['object']
-            logger.info(f"Checkout session completed event. Session ID: {session['id']}, Payment Status: {session.get('payment_status')}")
-
-            if session.get("payment_status") != "paid":
-                logger.warning(f"Payment status is not 'paid' for session {session['id']}. Status: {session.get('payment_status')}. Returning 200.")
-                return HttpResponse(status=200)
-
-            metadata = session.get('metadata', {})
-            user_id = metadata.get('user_id')
-            token_count_str = metadata.get('token_count')
-            company_id = metadata.get('company_id')
-
-            logger.info(f"Extracted Metadata: user_id={user_id}, token_count_str={token_count_str}, company_id={company_id}")
-
-            if not all([user_id, token_count_str, company_id]):
-                logger.error(f"Missing required metadata: user_id={user_id}, token_count={token_count_str}, company_id={company_id}")
-                return HttpResponseBadRequest("Missing required metadata.")
-
-            try:
-                token_count = int(token_count_str)
-            except (ValueError, TypeError):
-                logger.error(f"Invalid token_count format: {token_count_str}", exc_info=True)
-                return HttpResponseBadRequest("Invalid token count format.")
-
-            try:
-                user = User.objects.get(id=user_id)
-                company = Company.objects.get(company_id=company_id)
-                logger.info(f"User and Company found: {user.username}, {company.name}")
-
-                total_price = token_count * company.token_price
-                purchase = TokenPurchase.objects.create(
-                    user=user,
-                    company=company,
-                    tokens_bought=token_count,
-                    total_price=total_price,
-                    stripe_payment_intent_id=session.get('payment_intent')
-                )
-                logger.info(f"TokenPurchase created: {purchase.id}")
-
-                tokens_to_create = [
-                    Token(user=user, company=company, purchase=purchase)
-                    for _ in range(token_count)
-                ]
-                Token.objects.bulk_create(tokens_to_create)
-                logger.info(f"{token_count} Tokens created.")
-
-                # Send confirmation email to the user
-                send_custom_email(
-                    subject="Token Purchase Confirmation",
-                    message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team",
-                    recipient_list=[user.email]
-                )
-                logger.info(f"Confirmation email sent to {user.email}.")
-
-                profile = getattr(user, 'profile', None)
-                if profile:
-                    profile.token_count += token_count
-                    profile.save()
-                    logger.info(f"UserProfile token_count updated for {user.username}. New count: {profile.token_count}")
-                else:
-                    logger.error(f"UserProfile not found for user {user.username}. Cannot update token_count.")
-                    return HttpResponseBadRequest("User profile missing for token update.")
-
-            except Exception as e:
-                logger.error(f"Error processing Stripe webhook: {e}", exc_info=True)
-                return HttpResponseBadRequest(f"Error processing webhook: {e}")
-
-        return HttpResponse(status=200)
-
-    except Exception as e:
-        # This catch-all will ensure any unexpected error is logged
-        logger.critical(f"UNHANDLED EXCEPTION IN STRIPE WEBHOOK: {e}", exc_info=True)
-        return HttpResponseBadRequest(f"An unexpected error occurred: {e}")
-
-
 @login_required
 def approve_refund_request(request, request_id):
+    if not hasattr(request.user, 'profile') or not request.user.profile.company:
+        messages.error(request, 'You do not have a company associated with your profile.')
+        return redirect('company_dashboard')
+    if request.user.profile.company.manager != request.user:
+        messages.error(request, 'You are not authorized to approve refund requests.')
+        return redirect('company_dashboard')
+
     try:
         refund_request = RefundRequest.objects.get(
             id=request_id,
@@ -783,13 +684,16 @@ def approve_refund_request(request, request_id):
         purchase = token.purchase
 
         if not purchase:
-            messages.error(request, 'Token is not eligible for refund.')
+            messages.error(request, 'Token is not eligible for refund (no associated purchase).')
+            return redirect('view_refund_requests')
+
+        if not purchase.stripe_payment_intent_id:
+            messages.error(request, 'Token purchase has no associated Stripe PaymentIntent ID for refund.')
             return redirect('view_refund_requests')
 
         cost_per_token = purchase.get_cost_per_token()
-        amount_to_refund = int(cost_per_token * 100)  # Stripe uses cents
+        amount_to_refund = int(cost_per_token * 100)
 
-        # Perform the Stripe refund
         refund = stripe.Refund.create(
             payment_intent=purchase.stripe_payment_intent_id,
             amount=amount_to_refund,
@@ -802,7 +706,6 @@ def approve_refund_request(request, request_id):
             }
         )
 
-        # Update token and refund request
         token.refunded = True
         token.used = True
         token.save()
@@ -813,17 +716,270 @@ def approve_refund_request(request, request_id):
 
         send_custom_email(
             subject="Token Refund Confirmation",
-            message=f"Dear {token.user.username},\n\nYour token with ID {token.id} has been successfully refunded by {request.user.username}. Refund value: £{cost_per_token}. If you have any questions, please contact your gym.\n\nBest regards,\nClassifyBooking Team",
+            message=f"Dear {token.user.username},\n\nYour token with ID {token.id} has been successfully refunded by {request.user.username}. Refund value: £{cost_per_token:.2f}. If you have any questions, please contact your gym.\n\nBest regards,\nClassifyBooking Team",
             recipient_list=[token.user.email]
         )
-
 
         messages.success(request, f'Token refunded and request approved. Stripe Refund ID: {refund.id}')
     except RefundRequest.DoesNotExist:
         messages.error(request, 'Refund request not found or does not belong to your company.')
     except stripe.error.StripeError as e:
-        messages.error(request, f'Stripe error: {str(e)}')
+        messages.error(request, f'Stripe error: {str(e.user_message or e)}')
     except Exception as e:
         messages.error(request, f'Unexpected error: {str(e)}')
 
     return redirect('view_refund_requests')
+
+# --- Stripe Connect Onboarding Views (MODIFIED FOR COMPANY) ---
+@login_required
+def stripe_onboard_company(request):
+    # Only the company manager can onboard their company's Stripe account
+    if not hasattr(request.user, 'profile') or not request.user.profile.company:
+        messages.error(request, 'You do not have a company associated with your profile.')
+        return redirect('company_dashboard')
+    
+    company = request.user.profile.company
+    if company.manager != request.user:
+        messages.error(request, 'You are not authorized to manage Stripe onboarding for this company.')
+        return redirect('company_dashboard')
+
+    try:
+        if not company.stripe_account_id:
+            # Create a new Stripe Express account for the company
+            account = stripe.Account.create(
+                type='express',
+                country='GB', # Or your platform's primary country
+                email=company.email, # Use the company's email
+                capabilities={
+                    'card_payments': {'requested': True},
+                    'transfers': {'requested': True},
+                },
+                business_type='company', # This should be 'company' for a company account
+                company={ # Provide company details if available
+                    'name': company.name,
+                    'address': {
+                        'city': company.city,
+                        'line1': company.address,
+                        'postal_code': company.postcode,
+                        'country': 'GB', # Or your company's country
+                    },
+                    'phone': company.phone_number,
+                }
+            )
+            company.stripe_account_id = account.id
+            company.save()
+            logger.info(f"New Stripe Express account created for Company {company.name}: {account.id}")
+            messages.info(request, "New Stripe account created for your company. Redirecting to onboarding...")
+        else:
+            # Retrieve existing account
+            account = stripe.Account.retrieve(company.stripe_account_id)
+            logger.info(f"Existing Stripe Express account retrieved for Company {company.name}: {account.id}")
+            messages.info(request, "Existing Stripe account found. Redirecting to complete onboarding...")
+
+        # Create an Account Link to send the user (manager) to Stripe for onboarding
+        account_link = stripe.AccountLink.create(
+            account=company.stripe_account_id,
+            refresh_url=request.build_absolute_uri(reverse('stripe_onboard_company_refresh')),
+            return_url=request.build_absolute_uri(reverse('stripe_onboard_company_return')),
+            type='account_onboarding',
+            collect='eventually_due',
+        )
+        return redirect(account_link.url)
+
+    except stripe.error.StripeError as e:
+        messages.error(request, f"Stripe error during company onboarding: {e.user_message}")
+        logger.error(f"Stripe error during company onboarding for {company.name}: {e}", exc_info=True)
+        return redirect('company_dashboard')
+    except Exception as e:
+        messages.error(request, f"An unexpected error occurred during company onboarding: {e}")
+        logger.critical(f"Unexpected error during company onboarding for {company.name}: {e}", exc_info=True)
+        return redirect('company_dashboard')
+
+
+@login_required
+def stripe_onboard_company_return(request):
+    # This view is hit when the user (manager) returns from Stripe onboarding
+    if not hasattr(request.user, 'profile') or not request.user.profile.company:
+        messages.error(request, 'You do not have a company associated with your profile.')
+        return redirect('company_dashboard')
+    
+    company = request.user.profile.company
+    if company.manager != request.user:
+        messages.error(request, 'You are not authorized to manage Stripe onboarding for this company.')
+        return redirect('company_dashboard')
+
+    try:
+        if not company.stripe_account_id:
+            messages.error(request, "No Stripe account ID found for your company.")
+            return redirect('company_dashboard')
+
+        account = stripe.Account.retrieve(company.stripe_account_id)
+        if account.details_submitted:
+            company.stripe_onboarding_completed = True
+            company.save()
+            messages.success(request, f"Stripe onboarding for {company.name} completed successfully!")
+            logger.info(f"Stripe onboarding completed for Company {company.name}.")
+            return redirect('company_dashboard') # Redirect to company manager dashboard
+        else:
+            messages.warning(request, f"Stripe onboarding for {company.name} is not yet complete. Please continue the process.")
+            logger.warning(f"Stripe onboarding for Company {company.name} not complete upon return.")
+            return redirect(reverse('stripe_onboard_company')) # Redirect back to initiate onboarding
+
+    except stripe.error.StripeError as e:
+        messages.error(request, f"Stripe error during company onboarding return: {e.user_message}")
+        logger.error(f"Stripe error during company onboarding return for {company.name}: {e}", exc_info=True)
+        return redirect('company_dashboard')
+    except Exception as e:
+        messages.error(request, f"An unexpected error occurred during company onboarding return: {e}")
+        logger.critical(f"Unexpected error during company onboarding return for {company.name}: {e}", exc_info=True)
+        return redirect('company_dashboard')
+
+
+@login_required
+def stripe_onboard_company_refresh(request):
+    # This view is hit if the user clicks 'refresh' on Stripe's side
+    messages.info(request, "Redirecting to continue Stripe onboarding for your company.")
+    logger.info(f"Stripe onboarding refresh requested for Company.")
+    return redirect(reverse('stripe_onboard_company'))
+
+
+# --- Stripe Webhook (Updated for Company-Only Connect) ---
+@csrf_exempt
+def stripe_webhook(request):
+    try:
+        logger.info(f"Webhook received! Method: {request.method}, Path: {request.path}")
+
+        payload = request.body
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+        endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+        logger.info(f"Signature Header: {sig_header}")
+        logger.info(f"Endpoint Secret (first 5 chars): {endpoint_secret[:5]}...")
+
+        if not sig_header:
+            logger.error("Missing Stripe signature header.")
+            return HttpResponseBadRequest("Missing Stripe signature header.")
+
+        try:
+            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+            logger.info(f"Stripe event constructed successfully. Type: {event['type']}")
+        except (ValueError, stripe.error.SignatureVerificationError) as e:
+            logger.error(f"Stripe webhook signature verification error: {e}", exc_info=True)
+            return HttpResponseBadRequest(f"Webhook signature verification failed: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error during webhook construction: {e}", exc_info=True)
+            return HttpResponseBadRequest(f"Unexpected error: {e}")
+
+        # Handle the event based on its type
+        if event['type'] == 'checkout.session.completed':
+            session = event['data']['object']
+            logger.info(f"Checkout Session Completed: {session['id']}, Payment Status: {session.get('payment_status')}")
+
+            if session.get("payment_status") != "paid":
+                logger.warning(f"Payment status is not 'paid' for session {session['id']}. Status: {session.get('payment_status')}. Returning 200.")
+                return HttpResponse(status=200)
+
+            metadata = session.get('metadata', {})
+            user_id = metadata.get('user_id')
+            token_count_str = metadata.get('token_count')
+            company_id = metadata.get('company_id')
+            purchase_type = metadata.get('purchase_type') # Expected to be 'token_purchase'
+
+            logger.info(f"Extracted Metadata: user_id={user_id}, token_count_str={token_count_str}, company_id={company_id}, purchase_type={purchase_type}")
+
+            if not all([user_id, token_count_str, company_id, purchase_type]):
+                logger.error(f"Missing required metadata in checkout.session.completed event for session {session['id']}.")
+                return HttpResponseBadRequest("Missing required metadata.")
+
+            if purchase_type == 'token_purchase':
+                try:
+                    token_count = int(token_count_str)
+                    user = User.objects.get(id=user_id)
+                    company = Company.objects.get(company_id=company_id)
+                    logger.info(f"User and Company found: {user.username}, {company.name}")
+
+                    total_price_in_currency_units = session['amount_total'] / 100.0
+
+                    purchase = TokenPurchase.objects.create(
+                        user=user,
+                        company=company,
+                        tokens_bought=token_count,
+                        total_price=total_price_in_currency_units,
+                        stripe_payment_intent_id=session.get('payment_intent')
+                    )
+                    logger.info(f"TokenPurchase created: {purchase.id} for user {user.username}.")
+
+                    tokens_to_create = [
+                        Token(user=user, company=company, purchase=purchase)
+                        for _ in range(token_count)
+                    ]
+                    Token.objects.bulk_create(tokens_to_create)
+                    logger.info(f"{token_count} Tokens created for user {user.username}.")
+
+                    user_profile, created = UserProfile.objects.get_or_create(user=user)
+                    user_profile.token_count += token_count
+                    user_profile.save()
+                    logger.info(f"UserProfile token_count updated for {user.username}. New count: {user_profile.token_count}")
+
+                    send_custom_email(
+                        subject="Token Purchase Confirmation",
+                        message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price_in_currency_units:.2f}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team",
+                        recipient_list=[user.email]
+                    )
+                    logger.info(f"Confirmation email sent to {user.email}.")
+
+                except (User.DoesNotExist, Company.DoesNotExist) as e:
+                    logger.error(f"User or Company not found for checkout.session.completed event (session {session['id']}): {e}", exc_info=True)
+                    return HttpResponseBadRequest(f"User or Company not found: {e}")
+                except Exception as e:
+                    logger.critical(f"Error processing checkout.session.completed event for session {session['id']}: {e}", exc_info=True)
+                    return HttpResponseBadRequest(f"Error processing webhook: {e}")
+            else:
+                logger.warning(f"Unhandled purchase_type '{purchase_type}' in checkout.session.completed event for session {session['id']}.")
+
+
+        elif event['type'] == 'account.updated':
+            # This webhook handles updates to the *Company's* Stripe Connect account
+            account = event['data']['object']
+            logger.info(f"Stripe Account updated: {account['id']}")
+            try:
+                # Find the Company by its Stripe account ID
+                company = Company.objects.get(stripe_account_id=account['id'])
+                if account['details_submitted'] and not company.stripe_onboarding_completed:
+                    company.stripe_onboarding_completed = True
+                    company.save()
+                    logger.info(f"Company {company.name} ({company.company_id}) onboarding marked complete via webhook.")
+                elif not account['details_submitted'] and company.stripe_onboarding_completed:
+                    # If details are no longer submitted (e.g., due to a Stripe requirement change)
+                    company.stripe_onboarding_completed = False
+                    company.save()
+                    logger.warning(f"Company {company.name} ({company.company_id}) onboarding marked incomplete via webhook (details_submitted is false).")
+            except Company.DoesNotExist:
+                logger.warning(f"Company with Stripe account ID {account['id']} not found for account.updated event.")
+
+        elif event['type'] == 'payment_intent.succeeded':
+            # This block is for payments where the funds are transferred to the Company's Stripe account.
+            # This would be used for booking payments.
+            payment_intent = event['data']['object']
+            logger.info(f"PaymentIntent succeeded: {payment_intent['id']}")
+            booking_id = payment_intent['metadata'].get('booking_id') # Assuming you'll add this metadata when creating booking PaymentIntents
+            if booking_id:
+                try:
+                    booking = Booking.objects.get(id=booking_id)
+                    # Update booking status as per your model's STATUS choices
+                    booking.status = 0 # Example: 0 for 'Confirmed'
+                    booking.save()
+                    logger.info(f"Booking {booking_id} confirmed via webhook for PaymentIntent {payment_intent['id']}.")
+                except Booking.DoesNotExist:
+                    logger.error(f"Booking {booking_id} not found for PaymentIntent {payment_intent['id']}.")
+            else:
+                logger.warning(f"PaymentIntent {payment_intent['id']} succeeded but no booking_id in metadata. This might be a direct payment not related to a specific booking in your system.")
+
+        # Add more event types as needed (e.g., payout.paid, charge.refunded, etc.)
+        # For a full list of events: https://stripe.com/docs/api/events/types
+
+    except Exception as e:
+        logger.critical(f"CRITICAL: Unhandled exception in Stripe webhook: {e}", exc_info=True)
+        return HttpResponseBadRequest(f"An unexpected error occurred: {e}")
+
+    return HttpResponse(status=200) # Always return 200 for successful webhook receipt

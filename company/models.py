@@ -22,6 +22,10 @@ class Company(models.Model):
     website = models.URLField()
     auto_updates = models.BooleanField(default=False)
     token_price = models.DecimalField(max_digits=8, decimal_places=2, default=5.00)
+        # --- TWO FIELDS FOR STRIPE CONNECT ---
+    stripe_account_id = models.CharField(max_length=255, blank=True, null=True,
+                                         help_text="Stripe Connect Account ID for this company.")
+    stripe_onboarding_completed = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

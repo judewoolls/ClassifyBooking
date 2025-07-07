@@ -14,8 +14,10 @@
                 <p>City: {{ company.city }}</p>
                 <p>Postcode: {{ company.postcode }}</p>
                 <p>Email: {{ company.email}}</p>
-                <p>Contact Number: <a href="tel:+{{ company.phone_number }}" style="color: blue; text-decoration: underline;">{{ company.phone_number }}</a></p>
-                <p class="card-footer"><a href="{{ company.website}}" style="color: blue; text-decoration: underline;">Visit company website</a></p>
+                <p>Contact Number: <a href="tel:+{{ company.phone_number }}"
+                        style="color: blue; text-decoration: underline;">{{ company.phone_number }}</a></p>
+                <p class="card-footer"><a href="{{ company.website}}"
+                        style="color: blue; text-decoration: underline;">Visit company website</a></p>
             </details>
         </div>
         <div class="card col-12">
@@ -33,6 +35,20 @@
                     <a href="{% url 'update_token_price' %}" class="btn btn-success mt-2">Update Pricing</a>
                 </div>
             </details>
+        </div>
+        <div class="card col-12 d-flex justify-content-center text-center">
+            {% if company.stripe_onboarding_completed %}
+            <p class="text-success mb-4">Your company's Stripe account is connected and ready to receive payments!</p>
+            <!-- Optionally, a link to their Stripe Express dashboard if you want to provide it -->
+            <!-- You'd need to create a Stripe Login Link: https://stripe.com/docs/connect/enable-payment-acceptance-guide#login-links -->
+            {% else %}
+            <p class="text-danger mb-4">Your company's Stripe account is not yet fully set up. Please complete the
+                onboarding process to receive payments.</p>
+            <a href="{% url 'stripe_onboard_company' %}"
+                class="btn" style="background-color: indigo; color: white; max-width: 100px;">
+                Connect to Stripe
+            </a>
+            {% endif %}
         </div>
     </div>
 </div>
