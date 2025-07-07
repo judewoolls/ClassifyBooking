@@ -735,6 +735,14 @@ def stripe_webhook(request):
                 Token.objects.bulk_create(tokens_to_create)
                 logger.info(f"{token_count} Tokens created.")
 
+                # Send confirmation email to the user
+                send_custom_email(
+                    subject="Token Purchase Confirmation",
+                    message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team",
+                    recipient_list=[user.email]
+                )
+                logger.info(f"Confirmation email sent to {user.email}.")
+
                 profile = getattr(user, 'profile', None)
                 if profile:
                     profile.token_count += token_count
