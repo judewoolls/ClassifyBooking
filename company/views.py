@@ -4,7 +4,7 @@ from .forms import CreateCompanyForm, ChangeCompanyDetailsForm, AddCoachForm, Re
 from booking.models import Booking
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company, UserProfile
+from .models import Coach, Token, Venue, RefundRequest, TokenPurchase, Company, UserProfile, Image
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
@@ -15,6 +15,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 import logging
 from utils.email import send_custom_email
+
+email_image = Image.objects.filter(name="Logo").first()
 
 @login_required
 def company_dashboard(request):
@@ -744,7 +746,7 @@ def stripe_webhook(request):
                 # Send confirmation email to the user
                 send_custom_email(
                     subject="Token Purchase Confirmation",
-                    message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team",
+                    message=f"Dear {user.username},\n\nYou have successfully purchased {token_count} tokens for {company.name}. Total price: £{total_price}. Thank you for your purchase!\n\nBest regards,\nClassifyBooking Team\n\n\n{email_image}",
                     recipient_list=[user.email]
                 )
                 logger.info(f"Confirmation email sent to {user.email}.")
