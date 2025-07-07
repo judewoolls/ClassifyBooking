@@ -775,16 +775,21 @@ def cancel_view(request):
 
 # --- Refund views (These remain largely unchanged, but rely on the stripe_payment_intent_id from TokenPurchase) ---
 # Ensure your TokenPurchase model has stripe_payment_intent_id field.
+# --- Refund views (MODIFIED to refund from Connected Account) ---
+# Ensure your TokenPurchase model has stripe_payment_intent_id field.
+# Ensure your TokenPurchase model has stripe_payment_intent_id field.
+
 @login_required
 def refund_client_token(request, token_id):
     """
     Handles the refund of a single token via Stripe.
     This is initiated by the company manager.
+    The refund originates from the company's connected Stripe account.
     """
     if request.method == 'POST':
         try:
             token = Token.objects.get(id=token_id, used=False, refunded=False)
-            token_company = token.company
+            token_company = token.company # Get the company associated with the token
 
             # Authorization check: Ensure logged-in user is the manager of the token's company
             if token_company.manager != request.user:
@@ -796,17 +801,28 @@ def refund_client_token(request, token_id):
                 messages.error(request, 'Token does not have a valid payment intent for refund.')
                 return redirect('view_client_tokens', client_id=token.user.id)
 
+            # --- REMOVED: No longer checking token_company.stripe_account_id here ---
+            # The refund is issued from the platform account, which holds the original PaymentIntent.
+            # Stripe handles the reversal of funds from the connected account's balance.
+            # if not token_company.stripe_account_id:
+            #     messages.error(request, 'The company does not have a connected Stripe account to issue refunds from.')
+            #     return redirect('view_client_tokens', client_id=token.user.id)
+
             purchase = token.purchase
             payment_intent_id = purchase.stripe_payment_intent_id
 
             # Calculate cost per token in Stripe's smallest unit (pence)
-            # This is the amount that was originally paid for one token
             cost_per_token = int(purchase.get_cost_per_token() * 100)
 
             # Perform the Stripe refund for the amount of one token
             refund = stripe.Refund.create(
                 payment_intent=payment_intent_id,
                 amount=cost_per_token, # Refund only the cost of one token
+                # --- KEY CHANGE: REMOVED stripe_account parameter ---
+                # Refund is issued from the platform account, which owns the PaymentIntent.
+                # Stripe automatically handles the reversal of the transfer from the connected account.
+                # stripe_account=token_company.stripe_account_id,
+                # -------------------------------------------------------------
                 metadata={ # Custom metadata for your records in Stripe
                     "refunded_user": token.user.get_full_name() or token.user.username,
                     "refunded_user_id": token.user.id,
@@ -846,9 +862,13 @@ def refund_client_token(request, token_id):
         except Token.DoesNotExist:
             messages.error(request, 'Token not found or is not eligible for refund.')
         except stripe.error.StripeError as e:
-            messages.error(request, f'Stripe error: {str(e.user_message or e)}')
+            # Corrected: Pass the message argument explicitly
+            messages.error(request, f'Stripe error: {str(e.user_message or e)} (PaymentIntent ID: {payment_intent_id})') # Added payment_intent_id to log
+            logger.error(f"Stripe refund error for token {token_id} (PaymentIntent ID: {payment_intent_id}): {e}", exc_info=True) # Added to logger
         except Exception as e:
+            # Corrected: Pass the message argument explicitly
             messages.error(request, f'Unexpected error: {str(e)}')
+            logger.critical(f"Unexpected error during refund for token {token_id}: {e}", exc_info=True) # Added to logger
 
     return redirect('view_clients')
 
@@ -857,6 +877,7 @@ def approve_refund_request(request, request_id):
     """
     Approves a pending refund request and initiates a Stripe refund.
     Only the company manager can access this view.
+    The refund originates from the company's connected Stripe account.
     """
     # Authorization check
     if not hasattr(request.user, 'profile') or not request.user.profile.company:
@@ -874,6 +895,7 @@ def approve_refund_request(request, request_id):
         )
         token = refund_request.token
         purchase = token.purchase
+        token_company = token.company # Get the company associated with the token
 
         if not purchase:
             messages.error(request, 'Token is not eligible for refund (no associated purchase).')
@@ -883,6 +905,13 @@ def approve_refund_request(request, request_id):
             messages.error(request, 'Token purchase has no associated Stripe PaymentIntent ID for refund.')
             return redirect('view_refund_requests')
 
+        # --- REMOVED: No longer checking token_company.stripe_account_id here ---
+        # The refund is issued from the platform account, which holds the original PaymentIntent.
+        # Stripe handles the reversal of funds from the connected account's balance.
+        # if not token_company.stripe_account_id:
+        #     messages.error(request, 'The company does not have a connected Stripe account to issue refunds from.')
+        #     return redirect('view_refund_requests')
+
         cost_per_token = purchase.get_cost_per_token()
         amount_to_refund = int(cost_per_token * 100) # Amount in pence
 
@@ -890,6 +919,11 @@ def approve_refund_request(request, request_id):
         refund = stripe.Refund.create(
             payment_intent=purchase.stripe_payment_intent_id,
             amount=amount_to_refund,
+            # --- KEY CHANGE: REMOVED stripe_account parameter ---
+            # Refund is issued from the platform account, which owns the PaymentIntent.
+            # Stripe automatically handles the reversal of the transfer from the connected account.
+            # stripe_account=token_company.stripe_account_id,
+            # -------------------------------------------------------------
             metadata={
                 "refunded_user": token.user.get_full_name() or token.user.username,
                 "refunded_user_id": token.user.id,
@@ -919,9 +953,13 @@ def approve_refund_request(request, request_id):
     except RefundRequest.DoesNotExist:
         messages.error(request, 'Refund request not found or does not belong to your company.')
     except stripe.error.StripeError as e:
-        messages.error(request, f'Stripe error: {str(e.user_message or e)}')
+        # Corrected: Pass the message argument explicitly
+        messages.error(request, f'Stripe error: {str(e.user_message or e)} (PaymentIntent ID: {purchase.stripe_payment_intent_id})') # Added payment_intent_id to log
+        logger.error(f"Stripe refund error for request {request_id} (PaymentIntent ID: {purchase.stripe_payment_intent_id}): {e}", exc_info=True) # Added to logger
     except Exception as e:
+        # Corrected: Pass the message argument explicitly
         messages.error(request, f'Unexpected error: {str(e)}')
+        logger.critical(f"Unexpected error during refund for request {request_id}: {e}", exc_info=True) # Added to logger
 
     return redirect('view_refund_requests')
 
