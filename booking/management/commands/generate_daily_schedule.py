@@ -10,7 +10,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         target_date = now().date() + timedelta(days=30)
 
-        companies = Company.objects.filter(auto_update=True)
+        companies = Company.objects.filter(auto_updates=True)
 
         total_created = 0
         for company in companies:
