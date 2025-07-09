@@ -26,6 +26,20 @@ class Company(models.Model):
     stripe_account_id = models.CharField(max_length=255, blank=True, null=True,
                                          help_text="Stripe Connect Account ID for this company.")
     stripe_onboarding_completed = models.BooleanField(default=False)
+    # --- NEW STRIPE SUBSCRIPTION FIELDS ---
+    stripe_customer_id = models.CharField(max_length=255, blank=True, null=True,
+                                          help_text="Stripe Customer ID associated with this company.")
+    stripe_subscription_id = models.CharField(max_length=255, blank=True, null=True,
+                                              help_text="Stripe Subscription ID for the active subscription.")
+    subscription_status = models.CharField(max_length=50, blank=True, null=True,
+                                           help_text="Current status of the Stripe subscription (e.g., 'active', 'past_due').")
+    subscription_start_date = models.DateField(blank=True, null=True,
+                                               help_text="Date when the current subscription period started.")
+    subscription_end_date = models.DateField(blank=True, null=True,
+                                             help_text="Date when the current subscription period ends.")
+    subscription_plan_name = models.CharField(max_length=100, blank=True, null=True,
+                                              help_text="Name of the subscription plan (e.g., 'Monthly Flat Fee').")
+
 
     def __str__(self):
         return self.name
