@@ -1,13 +1,13 @@
-# <ins>*ClassFit*</ins> - booking system
+# <ins>*ClassifyBooking*</ins> - booking system
 
-## <ins>About ClassFit</ins>
-ClassFit is an online booking system for a local gym that allows the coaches to create classes/events and allows the users to book onto these and log their results/scores.
+## <ins>About ClassifyBooking</ins>
+ClassifyBooking is an online booking system for a local gym that allows the coaches to create classes/events and allows the users to book onto these and log their results/scores.
 
 This project will be used as my capstone project for the Code Institute skills bootcamp. It will be a full stack Python Django application.
 
 The target user for this project will be a gym owner who runs a gym like the CrossFit gym I attend. This is where they have regular classes and times, and these can be managed by the owner and their clients can reserve spaces and log progress.
 
-<ins>Deployed site link: </ins>[ClassFit](https://classfit-9bcca60104a7.herokuapp.com/)
+<ins>Deployed site link: </ins>[ClassifyBooking](https://classifybooking-2be97a09d742.herokuapp.com/)
 
 ## <ins>Contents</ins>
 
@@ -217,12 +217,12 @@ By focusing on these UX principles, we aim to create a user-friendly and efficie
 
 The site was deployed using **Heroku web services** and used **GitHub** for version control.
 
-ClassFit was developed using the Python framework **Django** on the backend working with a **Postgres database**. For the frontend, I made use of **HTML**, **CSS**, **JavaScript**, and I also used the **Bootstrap framework** to improve development speed and allow the project to be responsive. Another key factor in speeding up the development was the use of AI. The main AI tools used were ChatGPT and GitHub Copilot. I will go into further detail about the impact of these tools [here.](#impact-of-ai-analysis)
+ClassifyBooking was developed using the Python framework **Django** on the backend working with a **Postgres database**. For the frontend, I made use of **HTML**, **CSS**, **JavaScript**, and I also used the **Bootstrap framework** to improve development speed and allow the project to be responsive. Another key factor in speeding up the development was the use of AI. The main AI tools used were ChatGPT and GitHub Copilot. I will go into further detail about the impact of these tools [here.](#impact-of-ai-analysis)
 
 ## <ins>Features</ins>
 
 ### Main functionality
-For the ClassFit app, the key features are the coach being able to set up the classes and for the user to book onto the class. These classes are displayed and styled using Bootstrap for quicker development speed. The classes are displayed in the booking app, and the events for each day are displayed under the corresponding date and are ordered chronologically.
+For the ClassifyBooking app, the key features are the coach being able to set up the classes and for the user to book onto the class. These classes are displayed and styled using Bootstrap for quicker development speed. The classes are displayed in the booking app, and the events for each day are displayed under the corresponding date and are ordered chronologically.
 
 For the user, the booking button is displayed, and they can click on the button to book onto the event or click on the event title to view the event details. For the coach, the cancel button is displayed to delete the event from the database.
 
@@ -407,7 +407,7 @@ Overall, the use of AI tools like ChatGPT and GitHub Copilot significantly enhan
 
 ### Deployment Process
 
-The ClassFit project was deployed using Heroku, a cloud platform that enables developers to build, run, and operate applications entirely in the cloud. Below are the steps taken to deploy the project:
+The ClassifyBooking project was deployed using Heroku, a cloud platform that enables developers to build, run, and operate applications entirely in the cloud. Below are the steps taken to deploy the project:
 
 1. **Prepare the Application**: Ensure all dependencies are listed in the `requirements.txt` file and the application is configured to use a PostgreSQL database in production.
 
@@ -425,7 +425,7 @@ The ClassFit project was deployed using Heroku, a cloud platform that enables de
 
 8. **Click Deploy**: Once deployed, open the application in a web browser using open button.
 
-By following these steps, the ClassFit project was successfully deployed and made accessible to users.
+By following these steps, the ClassifyBooking project was successfully deployed and made accessible to users.
 
 
 ## <ins>Credits</ins>
@@ -437,7 +437,7 @@ By following these steps, the ClassFit project was successfully deployed and mad
 
 ## <ins>Evaluation</ins>
 
-The ClassFit project successfully meets all the acceptance criteria outlined in the user stories and passes all validation and feature tests. The project was significantly enhanced with the use of AI, specifically GitHub Copilot, which streamlined the development process and improved code quality.
+The ClassifyBooking project successfully meets all the acceptance criteria outlined in the user stories and passes all validation and feature tests. The project was significantly enhanced with the use of AI, specifically GitHub Copilot, which streamlined the development process and improved code quality.
 
 ### Key Achievements
 
@@ -461,4 +461,4 @@ The ClassFit project successfully meets all the acceptance criteria outlined in 
 
 ### Conclusion
 
-Overall, the ClassFit project is a robust and well-implemented platform that meets the needs of both users and coaches. The use of AI tools like GitHub Copilot has significantly contributed to the project's success, ensuring high-quality code and efficient development. The project is well-positioned for future enhancements and scalability, making it a valuable tool for fitness enthusiasts and coaches alike.
+Overall, the ClassifyBooking project is a robust and well-implemented platform that meets the needs of both users and coaches. The use of AI tools like GitHub Copilot has significantly contributed to the project's success, ensuring high-quality code and efficient development. The project is well-positioned for future enhancements and scalability, making it a valuable tool for fitness enthusiasts and coaches alike.
