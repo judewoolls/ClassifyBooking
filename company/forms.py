@@ -4,7 +4,12 @@ from django.contrib.auth.models import User
 from company.models import Company, Coach, Venue, Token
 
 class CustomSignupForm(SignupForm):
-    company = forms.ModelChoiceField(queryset=Company.objects.all(), empty_label="Select your company", required=False)
+    company = forms.ModelChoiceField(
+        queryset=Company.objects.all(),
+        empty_label="Select your company",
+        required=False,
+        widget=forms.Select(attrs={'class': 'company-selector'})  
+    )
 
     def save(self, request):
         user = super().save(request)
@@ -174,4 +179,3 @@ class TokenPriceUpdateForm(forms.ModelForm):
         fields = ['token_price']
         labels = {'token_price': 'Token Price (£)'}
 
-    
