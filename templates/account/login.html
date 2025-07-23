@@ -11,6 +11,7 @@ ClassFit | Login
 
 {% block content %}
 
+
 <div class="container">
     <div class="row">
         <p>You are already logged in. Please naviagte to <a href="{% url 'home' %}">home</a></p>
@@ -19,6 +20,22 @@ ClassFit | Login
 {% endblock %}
 
 {% block unauthorised_content %}
+<style>
+    input {
+      border-radius: 5px;
+      padding: 10px;
+      width: 50%;
+      font-size: 1em;
+      display: inline-block;
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      margin-right: 10px;
+    }
+  
+</style>
+
 <div class="container">
     <div class="row">
         <div class="col-md-8 mt-3 offset-md-2">
