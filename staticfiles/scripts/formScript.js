@@ -6,12 +6,14 @@ const datesSentOutput = document.getElementById('dates-sent-output');
 const datesSentInput = document.getElementById('dates-sent-input');
 const datesToAdd = [];
 
+
+
 addButton.addEventListener("click", function () {
     console.log("Add button clicked");
-    let date = document.getElementById('date-input').value; // Use .value for input fields
+    let date = document.getElementById('date-input-selector').value; // Use .value for input fields
     if (date) {
         dateList.innerHTML += `<li class="col-4 col-md-1">${date} <button class="delete btn btn-danger">Delete</button></li>`;
-        document.getElementById('date-input').value = ""; // Clear the input field
+        document.getElementById('date-input-selector').value = ""; // Clear the input field
         deleteButtons = document.querySelectorAll('.delete'); // Update the delete buttons list
         deleteButtons.forEach(button => {
             button.addEventListener('click', function () {
