@@ -30,7 +30,7 @@ def home(request):
                 min_reps = leaderboard_filter.cleaned_data.get('min_reps')
                 min_weight = leaderboard_filter.cleaned_data.get('min_weight')
 
-                leaderboard = Score.objects.all()
+                leaderboard = Score.objects.filter(user__profile=request.user.profile)
                 if exercise:
                     leaderboard = leaderboard.filter(exercise=exercise)
                 if min_reps:
@@ -38,10 +38,10 @@ def home(request):
                 if min_weight:
                     leaderboard = leaderboard.filter(weight__gte=min_weight)
             else:
-                leaderboard = Score.objects.all()
+                leaderboard = Score.objects.filter(user__profile=request.user.profile)
         else:
             leaderboard_filter = LeaderboardFilterForm()
-            leaderboard = Score.objects.all()
+            leaderboard = Score.objects.filter(user__profile=request.user.profile)
 
         return render(request, 'homepage/home.html', {
             'exercises': Exercise.objects.all(),
