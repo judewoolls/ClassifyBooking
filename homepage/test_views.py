@@ -23,6 +23,8 @@ class HomepageViewsTest(TestCase):
 
         # Create an exercise
         self.exercise = Exercise.objects.create(name='Test Exercise')
+        self.user.profile.company = self.company
+        self.user.profile.save()
 
         # Create an event associated with the coach, company, and venue
         self.event = Event.objects.create(
