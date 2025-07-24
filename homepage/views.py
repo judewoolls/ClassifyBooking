@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 def home(request):
     # Get the current user
     user = request.user
-    if user.is_authenticated:
+    if user.is_authenticated and hasattr(user, 'profile'):
 
         # Query bookings made by the user and order by the date of the event
         current_date = timezone.now().date()
